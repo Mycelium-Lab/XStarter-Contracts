@@ -170,3 +170,5 @@ dist
 
 .vscode
 secrets.json
+
+contracts/artifacts/

@@ -3,11 +3,11 @@ pragma solidity 0.6.2;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "./Xstarter.sol";
+import "./XStarterToken.sol";
 
 contract CaseStaking {
     using SafeMath for uint256;
-    using SafeERC20 for Xstarter;
+    using SafeERC20 for XStarterToken;
 
     event CreateStake(
         uint256 idx,
@@ -47,10 +47,10 @@ contract CaseStaking {
     }
     Stake[] public stakeList;
     mapping(address => uint256) public userStakeAmount;
-    uint256 public mintedCaseTokens;
+    uint256 public mintedXStarterTokens;
     bool public initialized;
 
-    Xstarter public xstarterToken;
+    XStarterToken public xstarterToken;
     address admin;
     modifier onlyAdmin {
         require(msg.sender == admin, "Only admin can create new sales!");
@@ -58,9 +58,9 @@ contract CaseStaking {
     }
     
     
-    constructor(address _xstarter, address _admin, uint256[] memory _tierValues) public {
+    constructor(address _xstarterToken, address _admin, uint256[] memory _tierValues) public {
         tierValues = _tierValues;
-        xstarterToken = Xstarter(_xstarter);
+        xstarterToken = XStarterToken(_xstarterToken);
         admin = _admin;
     }
 
@@ -99,7 +99,7 @@ contract CaseStaking {
                 active: true
             })
         );
-        mintedCaseTokens = mintedCaseTokens.add(interestAmount);
+        mintedXStarterTokens = mintedXStarterTokens.add(interestAmount);
         userStakeAmount[msg.sender] = userStakeAmount[msg.sender].add(
             stakeAmount
         );
@@ -112,7 +112,7 @@ contract CaseStaking {
 
         updateUserTier(msg.sender);
         
-        require(mintedCaseTokens <= CASE_MINT_CAP, "CaseStaking: reached cap");
+        require(mintedXStarterTokens <= CASE_MINT_CAP, "CaseStaking: reached cap");
 
         emit CreateStake(
             stakeIdx,
@@ -194,7 +194,7 @@ contract CaseStaking {
         view
         returns (uint256)
     {
-        uint256 earlyFactor = _earlyFactor(mintedCaseTokens);
+        uint256 earlyFactor = _earlyFactor(mintedXStarterTokens);
         uint256 biggerBonus = stakeAmount.mul(PRECISION).div(
             BIGGER_BONUS_DIVISOR
         );

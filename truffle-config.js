@@ -60,7 +60,7 @@
      develop: {
       port: 8545,
       network_id: '*',
-      accounts: 600,
+      accounts: 10,
       defaultEtherBalance: 50,
       blockTime: 2
     },

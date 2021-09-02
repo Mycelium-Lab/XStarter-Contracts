@@ -3,9 +3,8 @@ const { ether } = require("@openzeppelin/test-helpers")
 const BigNumber = require("bignumber.js")
 
 const TokenProxy = artifacts.require("TokenProxy")
-const CaseToken = artifacts.require("CaseToken")
+const XStarterToken = artifacts.require("XStarterToken")
 const CaseStaking = artifacts.require("CaseStaking")
-const CaseReward = artifacts.require("CaseReward")
 
 const { 
   insertLevelOrder, 
@@ -19,29 +18,20 @@ contract("Test Logic", function (accounts) {
 
   before(async () => {
     // token
-    this.logicInstance = await CaseToken.new({ from: admin })
+    this.logicInstance = await XStarterToken.new({ from: admin })
     this.proxyInstance = await TokenProxy.new(
       this.logicInstance.address,
       proxyAdmin,
       "0x"
     )
-    this.tokenInstance = await CaseToken.at(this.proxyInstance.address)
+    this.tokenInstance = await XStarterToken.at(this.proxyInstance.address)
     await tokenInstance.initialize(admin)
 
     // logic
-    this.caseStaking = await CaseStaking.new(this.proxyInstance.address)
-    this.caseReward = await CaseReward.new(
-      admin, // admin wallet acts as a market wallet
-      this.caseStaking.address,
-      this.proxyInstance.address,
-    )
-
-    await this.caseStaking.init(this.caseReward.address)
+    this.caseStaking = await CaseStaking.new(this.proxyInstance.address, admin, [0, 100, 500, 1000, 2500, 5000, 7500, 10000, 20000].map( value => value + "0".repeat(8)));
+    await this.caseStaking.init()
     const minter_role = await this.tokenInstance.MINTER_ROLE()
     await this.tokenInstance.grantRole(minter_role, this.caseStaking.address, {
-      from: admin,
-    })
-    await tokenInstance.grantRole(minter_role, this.caseReward.address, {
       from: admin,
     })
 
@@ -99,7 +89,7 @@ contract("Test Logic", function (accounts) {
   describe("Test Staking", () => {
     it("Check initially minted", async () => {
       // check 0 minted at the start
-      const mintedStart = await this.caseStaking.mintedCaseTokens()
+      const mintedStart = await this.caseStaking.mintedXStarterTokens()
       assert.deepEqual(mintedStart.toString(), "0")
     })
 
@@ -114,11 +104,11 @@ contract("Test Logic", function (accounts) {
 
     it("Check token matches proxy", async () => {
       // test token
-      const token = await this.caseStaking.caseToken()
+      const token = await this.caseStaking.xstarterToken()
       assert.deepEqual(token, this.proxyInstance.address)
     })
 
-    it("Check staking without a referrer", async () => {
+    it("Check staking", async () => {
       // prepare for staking
       const supplyBefore = await this.tokenInstance.totalSupply()
 
@@ -133,15 +123,14 @@ contract("Test Logic", function (accounts) {
       await this.caseStaking.stake(
         this.CASE_10000,
         stakeForDays,
-        this.ZERO_ADDR,
         { from: alice }
       )
-
       const supplyAfter = await this.tokenInstance.totalSupply()
       assert.deepEqual(supplyBefore.toString(), "0")
       assert.deepEqual(supplyAfter.toString(), "1155323972602")
-
-      const minted = await this.caseStaking.mintedCaseTokens()
+      const aliceTierLevelStaked = await this.caseStaking.userTiers(alice);
+      assert.deepEqual(aliceTierLevelStaked.toString(), "7")
+      const minted = await this.caseStaking.mintedXStarterTokens()
       assert.deepEqual(minted.toString(), "155323972602")
       
       await this.timeTravel(this.SECONDS_IN_DAY * stakeForDays)
@@ -150,7 +139,8 @@ contract("Test Logic", function (accounts) {
         alice
       )
       assert.deepEqual(balanceAliceAfterWithdrawal.toString(), "1155323972602")
-
+      const aliceTierLevelWithdrawn = await this.caseStaking.userTiers(alice);
+      assert.deepEqual(aliceTierLevelWithdrawn.toString(), "0");
       // MANUALLY
       // const manualWithdrawAfter = () =>
       //   new Promise((resolve) => {
@@ -163,408 +153,6 @@ contract("Test Logic", function (accounts) {
       //     }, 10 * 1000)
       //   })
       // await manualWithdrawAfter()
-    })
-
-    it("Check staking with a referrer", async () => {
-      const stakeForDays = 100
-      const stakeAmount = this.CASE_10
-      
-      await this.setupTokensForStaking(john, this.bnToString(stakeAmount))
-      await this.caseStaking.stake(this.bnToString(stakeAmount), stakeForDays, jack, { from: john })
-
-      const balance0 = BigNumber((await this.tokenInstance.balanceOf(john)))
-      const balance1 = BigNumber((await this.tokenInstance.balanceOf(jack)))
-
-      const expectedInterest = BigNumber((await this.caseStaking.getInterestAmount(this.bnToString(stakeAmount), stakeForDays)))
-      const expectedReward0 = BigNumber(expectedInterest).times(0.03) // 3% bonus for the referred
-      const expectedReward1 = BigNumber(expectedInterest).times(0.08) // first level 8% bonus for the referrer
-
-      assert(epsilon_equal(expectedReward0, balance0), "Staker reward incorrect.")
-      assert(epsilon_equal(expectedReward1, balance1), "Referrer reward incorrect.")
-
-      // withdrawing stake #1 (alice was 0)
-      await this.timeTravel(stakeForDays * this.SECONDS_IN_DAY)
-
-      const beforeBalanceA = (await this.tokenInstance.balanceOf(john))
-      await this.caseStaking.withdraw(1, { from: john })
-      const balanceChangeA = BigNumber((await this.tokenInstance.balanceOf(john))).minus(beforeBalanceA)
-      const expectedInterestA = BigNumber((await this.caseStaking.getInterestAmount(bnToString(stakeAmount), stakeForDays)))
-      const actualInterestA = balanceChangeA.minus(stakeAmount)
-      
-      assert(epsilon_equal(actualInterestA, expectedInterestA), "Interest amount incorrect for stake #1")
-    })
-  })
-
-  describe("Test reward", () => {
-    // only for testing onlySigner functions if DEFAULT_ADMIN role is specified as admin is CaseReward constructor
-    // before(async () => {
-    //   const signer_role = await this.caseReward.SIGNER_ROLE()
-    //   await this.caseReward.grantRole(signer_role, admin, {
-    //     from: admin
-    //   })
-    // })
-
-    it("Calling refer from outside Staking", async () => {
-      const errorMsg = "CaseReward: unauthorized signer call!"
-      ;(async () => {
-        let err = ""
-        try {
-          await this.caseReward.refer(bob, sam, { from: sam })
-        } catch (error) {
-          err = error.reason
-        }
-        assert.deepEqual(err, errorMsg)
-      })()
-      ;(async () => {
-        let err = ""
-        try {
-          await this.caseReward.refer(bob, sam, { from: bob })
-        } catch (error) {
-          err = error.reason
-        }
-        assert.deepEqual(err, errorMsg)
-      })()
-    })
-
-    it("Calling rank up with no cv", async () => {
-      const errorMsg = "CaseReward: career value is not enough!"
-      ;(async () => {
-        let err = ""
-        try {
-          await this.caseReward.rankUp(bob, { from: bob })
-        } catch (error) {
-          err = error.reason
-        }
-        assert.deepEqual(err, errorMsg)
-      })()
-      ;(async () => {
-        let err = ""
-        try {
-          await this.caseReward.rankUp(alice, { from: alice })
-        } catch (error) {
-          err = error.reason
-        }
-        assert.deepEqual(err, errorMsg)
-      })()
-    })
-
-    it("Calling canRefer", async () => {
-      const canRefer = await this.caseReward.canRefer(bob, sam)
-      assert.deepEqual(canRefer, true)
-    })
-
-    it("Check token matches proxy", async () => {
-      // test token
-      const token = await this.caseReward.caseToken()
-      assert.deepEqual(token, this.proxyInstance.address)
-    })
-
-    it("Check initially minted", async () => {
-      // check 0 minted at the start
-      const mintedStart = await this.caseReward.mintedCaseTokens()
-      assert.deepEqual(mintedStart.toString(), "0")
-    })
-
-    it("Check rank of Bob", async () => {
-      const cvRankOfBob = await this.caseReward.cvRankOf(bob)
-      assert.deepEqual(cvRankOfBob.toString(), "0")
-    })
-
-    it("Check must be only one referrer", async () => {
-      // give tokens to bob
-      await this.setupTokensForStaking(bob, this.CASE_10000)
-      
-      const initJackBalance = await this.tokenInstance.balanceOf(jack)
-      const initAliceBalance = await this.tokenInstance.balanceOf(alice)
-      const stakeForDays = 100
-      // refer is called within staking
-      await this.caseStaking.stake(
-        this.CASE_10000 / 2,
-        stakeForDays,
-        jack,
-        { from: bob }
-      )
-      
-      await this.caseStaking.stake(
-        this.CASE_10000 / 2,
-        stakeForDays,
-        alice,
-        { from: bob }
-      )
-
-      const afterReferJackBalance = await this.tokenInstance.balanceOf(jack)
-      const afterReferAliceBalance = await this.tokenInstance.balanceOf(alice)
-      
-      // since alice cannot be the second referrer, her balance must remain unchanged
-      assert.notDeepEqual(initJackBalance, afterReferJackBalance)
-      assert.deepEqual(initAliceBalance, afterReferAliceBalance)
-
-      const actualReferrer = await this.caseReward.referrerOf(bob)
-      assert.deepEqual(actualReferrer, jack, 'referrer not set correctly')
-    })
-
-    it("Check paying commission", async () => {
-      // give tokens to sam, kyle and dale
-      await this.setupTokensForStaking(sam, this.CASE_10000)
-      await this.setupTokensForStaking(kyle, this.CASE_10000)
-      await this.setupTokensForStaking(dale, this.CASE_10000)
-      await this.setupTokensForStaking(homer, this.CASE_10000)
-
-      const stakeForDays = 100
-
-      // dale has enough stake for all 8 levels, we will test the first two 
-      // (8 and 5 % correspondingly)
-      await this.caseStaking.stake(
-        this.CASE_10000,
-        stakeForDays,
-        this.ZERO_ADDR,
-        { from: dale }
-      )
-
-      await this.caseStaking.stake(
-        this.CASE_10000,
-        stakeForDays,
-        dale,
-        { from: sam }
-      )
-
-      await this.caseStaking.stake(
-        this.CASE_10000,
-        stakeForDays,
-        sam,
-        { from: kyle }
-      )
-
-      await this.caseStaking.stake(
-        this.CASE_10000,
-        stakeForDays,
-        kyle,
-        { from: homer }
-      )
-
-      const expectedInterest = BigNumber((await this.caseStaking.getInterestAmount(this.CASE_10000, stakeForDays))) 
-      
-      const afterReferralsKyleBalance = BigNumber((await this.tokenInstance.balanceOf(kyle)))
-      const afterReferralsSamBalance = BigNumber((await this.tokenInstance.balanceOf(sam)))
-      const afterReferralsDaleBalance = BigNumber((await this.tokenInstance.balanceOf(dale)))
-
-      // 0.03 is a referred bonus
-      assert(epsilon_equal(afterReferralsKyleBalance, expectedInterest * (0.08 + 0.03)), 'referral levels balance distribution incorrect')
-      assert(epsilon_equal(afterReferralsSamBalance, expectedInterest * (0.08 + 0.05 + 0.03)), 'referral levels balance distribution incorrect')
-      // date has no referred bonus
-      assert(epsilon_equal(afterReferralsDaleBalance, expectedInterest * (0.08 + 0.05 + 0.025)), 'referral levels balance distribution incorrect')
-    })
-
-    it('Check CV points/rank', async () => {
-      const stakeForDays = 100
-      const expectedInterest = BigNumber((await this.caseStaking.getInterestAmount(this.CASE_10000, stakeForDays))) 
-
-      const initCareerValueOfDale = BigNumber((await this.caseReward.careerValue(dale)))
-      const initCareerRankOfDale = await this.caseReward.cvRankOf(dale)
-
-      assert(this.epsilon_equal(initCareerValueOfDale, BigNumber(expectedInterest * (0.08 + 0.05 + 0.025)).div(100)), 'career points distribution incorrect')
-      assert.deepEqual(initCareerRankOfDale.toNumber(), 0, 'career rank is set incorrectly')
-
-      const largeStake = this.CASE_10000 * 100
-      const expectedInterestLarge = BigNumber((await this.caseStaking.getInterestAmount(largeStake, stakeForDays))) 
-
-      await this.setupTokensForStaking(harry, largeStake)
-      await this.caseStaking.stake(
-        largeStake,
-        stakeForDays,
-        dale,
-        { from: harry }
-      )
-
-      const afterCareerValueOfDale = BigNumber((await this.caseReward.careerValue(dale)))
-      const afterCareerRankOfDale = await this.caseReward.cvRankOf(dale)
-      
-      assert(this.epsilon_equal(afterCareerValueOfDale, BigNumber(expectedInterest * (0.08 + 0.05 + 0.025)).div(100).plus(BigNumber(expectedInterestLarge * 0.08).div(100))), 'career points distribution incorrect')
-      // dale should have appx. 148,365 points, 100 < 200 - rank 1
-      assert.deepEqual(afterCareerRankOfDale.toNumber(), 1, 'career rank is set incorrectly')
-    })
-
-    it('Check rank up and rewards', async () => {
-      const initDaleBalance = BigNumber((await this.tokenInstance.balanceOf(dale)))
-      const initDaleRank = await this.caseReward.rankOf(dale)
-      assert.deepEqual(initDaleRank.toNumber(), 0)
-
-      await this.caseReward.rankUp(dale)
-      const afterBalance = BigNumber((await this.tokenInstance.balanceOf(dale)))
-      const afterDaleRank = await this.caseReward.rankOf(dale)
-
-      assert.deepEqual(afterDaleRank.toNumber(), 1, 'rank setting incorrect')
-      // dale received a rank reward of 1000 for 0->1
-      assert(this.epsilon_equal(afterBalance.minus(initDaleBalance), BigNumber(this.CASE_1000)), 'rank reward distribution incorrect')
-
-      // fresh new test with james & george, edward, ryan, eric
-      // the goal is james reaching rank 2
-      // ryan and eric are needed only for increasing james' cv points
-      const names = [james, george, edward, ryan, eric]
-
-      const stakeForDays = 100
-      const largeStake = this.CASE_10000 * 100
-      for (const name of names) {
-        await this.setupTokensForStaking(name, largeStake)
-      }
-
-      for (const name of names) {
-        let ref = james
-        if (name === james) {
-          ref = this.ZERO_ADDR
-        } 
-        await this.caseStaking.stake(
-          largeStake,
-          stakeForDays,
-          ref,
-          { from: name }
-        )
-      }
-
-      // give james's referrals two referrals each
-      const subNames = [tom, ben, jen, ken]
-      for (const name of subNames) {
-        await this.setupTokensForStaking(name, largeStake)
-      }
-
-      for (const name of subNames.slice(0, 2)) {
-        await this.caseStaking.stake(
-          largeStake,
-          stakeForDays,
-          george,
-          { from: name }
-        )
-      }
-
-      for (const name of subNames.slice(-2)) {
-        await this.caseStaking.stake(
-          largeStake,
-          stakeForDays,
-          edward,
-          { from: name }
-        )
-      }
-
-      // increase downline ranks [1] of james to 2
-      await this.caseReward.rankUp(george)
-      await this.caseReward.rankUp(edward)
-
-      const expectedInterest = BigNumber((await this.caseStaking.getInterestAmount(largeStake, stakeForDays))) 
-
-      const edBalance = BigNumber((await this.tokenInstance.balanceOf(edward)))
-      // edward received 0.03 * i as a bonus 'with a referrer', 0.08 * 2 * i for his 2 referrers + 1000 as a rank 1 achievment reward
-      assert(this.epsilon_equal(edBalance, BigNumber(expectedInterest * (0.03 + 0.08 + 0.08)).plus(BigNumber(this.CASE_1000))), 'referral balance incorrect')
-
-      const initJamesBalance = BigNumber((await this.tokenInstance.balanceOf(james)))
-      const initJamesRank = await this.caseReward.rankOf(james) 
-
-      assert.deepEqual(initJamesRank.toNumber(), 0)
-
-      // rank up james 2 times to rank 2
-      await this.caseReward.rankUp(james)
-      await this.caseReward.rankUp(james)
-
-      const afterRankUpJamesBalance = BigNumber((await this.tokenInstance.balanceOf(james)))
-      const afterRankUpJamesRank = await this.caseReward.rankOf(james) 
-
-      assert.deepEqual(afterRankUpJamesRank.toNumber(), 2, 'rank setting incorrect')
-      // james receives 1000 for reaching rank 1, 2000 for reaching rank 2
-      assert(this.epsilon_equal(afterRankUpJamesBalance.minus(initJamesBalance), BigNumber(this.CASE_1000).plus(BigNumber(this.CASE_1000 * 2))), 'rank reward distribution incorrect')
-
-      // trying to rank up james again
-      ;(async () => {
-        let hasErr = false
-        try {
-          await this.caseReward.rankUp(james)
-        } catch {
-          hasErr = true
-        }
-        assert.deepEqual(hasErr, true, 'ranking up when conditions not satisfied')
-      })()
-    })
-
-    it ('Deep rank test', async () => {
-      // how many referral level deep to test
-      const levelsToTest = 6
-      const rewardShares = [0.08, 0.05, 0.025, 0.015, 0.01, 0.01, 0.005, 0.005]
-
-      const calculateTreeRewardShare = (maxLevel) => (
-        rewardShares.slice(0, maxLevel).reduce((acc, el, idx) => {
-          acc += el * (2 ** (idx + 1))
-          return acc
-        }, 0)
-      )
-
-      const largeStake = this.CASE_10000 * 40
-      const stakeForDays = 1000
-      const deepRankTestAccounts = rest.slice(0, (2 ** (levelsToTest + 1)) - 1)
-
-      const levelActionStake = async (node) => {
-          const referrer = !node.parent_data ? this.ZERO_ADDR : node.parent_data.address
-          await this.caseStaking.stake(
-            largeStake,
-            stakeForDays,
-            referrer,
-            { from: node.data.address }
-          )
-      }
-
-      const levelActionRankUp = async (node, currentPass) => {
-        const numberOfRankUps = getNodeHeight(node) - 1
-        if (numberOfRankUps >= currentPass) {
-          await this.caseReward.rankUp(
-            node.data.address,
-            { from: node.data.address }
-          )
-        }
-      }
-
-      // give everyone enough tokens for staking
-      for (const account of deepRankTestAccounts) {
-        await this.setupTokensForStaking(account, largeStake)
-      }
-
-      // init tree
-      let root
-      root = insertLevelOrder(deepRankTestAccounts, root, 0, null)
-
-      // staking according to the tree hierarchy
-      await takeActionForCurrentLevelOrder(root, levelActionStake)
-
-      // expected interest of 1 staking
-      const expectedInterest = BigNumber((await this.caseStaking.getInterestAmount(largeStake, stakeForDays))) 
-      const rewardTreeShare = calculateTreeRewardShare(levelsToTest)
-
-      // assert that referral reward are right
-      const balanceOfFirst = BigNumber((await this.tokenInstance.balanceOf(deepRankTestAccounts[0])))
-      // console.log(balanceOfFirst.toNumber() / this.CASE_PRECISION)
-
-      // longer bonus changes over time, so best to tolerate a slippage
-      const acceptable_slippage = BigNumber(100000 * this.CASE_PRECISION)
-      assert.isTrue(balanceOfFirst.minus(BigNumber(expectedInterest * rewardTreeShare)).lt(acceptable_slippage), 'reward distribution incorrect')
-
-      // ranking up according to the tree hierarchy, one rank up for each node per traversal, total time complexity — O(nlog(n))
-      for (let index = 1; index <= levelsToTest; index++) {
-        await takeActionForCurrentLevelOrder(root, levelActionRankUp, index)
-      }
-
-      // assert that career value of the freshest user is 0
-      const careerValueOfLast = await this.caseReward.careerValue(deepRankTestAccounts[deepRankTestAccounts.length - 1])
-      assert.deepEqual(careerValueOfLast.toNumber(), 0, 'career value of the freshest user is not 0')
-
-      // assert that career value of the first user is right
-      const careerValueOfFirst = BigNumber((await this.caseReward.careerValue(deepRankTestAccounts[0])))
-      // console.log(careerValueOfFirst.toNumber() / this.CASE_PRECISION)
-      const acceptable_slippage_cv = acceptable_slippage.div(100) 
-      assert.isTrue(careerValueOfFirst.minus(BigNumber(expectedInterest * rewardTreeShare).div(100)).lt(acceptable_slippage_cv), 'career value distribution incorrect')
-
-      // // LOG TO CHECK
-      // const cvRankOfFirst = await this.caseReward.cvRankOf(deepRankTestAccounts[0])
-      // console.log(cvRankOfFirst.toString())
-
-      // // LOG TO CHECK
-      // const rankOfFirst = await this.caseReward.rankOf(deepRankTestAccounts[0])
-      // console.log(rankOfFirst.toString())
     })
   })
 })

@@ -3,9 +3,9 @@ pragma solidity 0.6.2;
 import "@openzeppelin/contracts/proxy/Initializable.sol";
 import "./ERC20.sol";
 
-contract Xstarter is ERC20, Initializable {
+contract XStarterToken is ERC20, Initializable {
     function initialize(address admin) public initializer {
-        _initialize("Xstarter", "XST", 8);
+        _initialize("XStarter", "XST", 8);
         
         _setupRole(DEFAULT_ADMIN_ROLE, admin);
         _setupRole(MINTER_ROLE, admin);

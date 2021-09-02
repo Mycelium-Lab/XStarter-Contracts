@@ -2,20 +2,20 @@ const { assert } = require("chai")
 const { ether } = require("@openzeppelin/test-helpers")
 
 const TokenProxy = artifacts.require("TokenProxy")
-const CaseToken = artifacts.require("CaseToken")
+const XStarterToken = artifacts.require("XStarterToken")
 const CaseToken_V2 = artifacts.require("CaseToken_V2")
 
-contract("Test Case Token", function (accounts) {
+contract("Test XStarter Token", function (accounts) {
   const [admin, proxyAdmin, alice, bob] = accounts
 
   before(async () => {
-    this.logicInstance = await CaseToken.new({ from: admin })
+    this.logicInstance = await XStarterToken.new({ from: admin })
     this.proxyInstance = await TokenProxy.new(
       this.logicInstance.address,
       proxyAdmin,
       "0x"
     )
-    this.tokenInstance = await CaseToken.at(this.proxyInstance.address)
+    this.tokenInstance = await XStarterToken.at(this.proxyInstance.address)
   })
 
   describe("Check initial values and init the token contract", () => {
@@ -38,8 +38,8 @@ contract("Test Case Token", function (accounts) {
       const symbol = await this.tokenInstance.symbol()
       const decimals = await this.tokenInstance.decimals()
 
-      assert.deepEqual(name, "Case Token")
-      assert.deepEqual(symbol, "CASE")
+      assert.deepEqual(name, "XStarter")
+      assert.deepEqual(symbol, "XST")
       assert.deepEqual(decimals.toString(), "8")
     })
   })
@@ -87,8 +87,8 @@ contract("Test Case Token", function (accounts) {
       const symbol = await this.tokenInstance.symbol()
       const decimals = await this.tokenInstance.decimals()
 
-      assert.deepEqual(name, "Case Token")
-      assert.deepEqual(symbol, "CASE")
+      assert.deepEqual(name, "XStarter")
+      assert.deepEqual(symbol, "XST")
       assert.deepEqual(decimals.toString(), "8")
     })
 
