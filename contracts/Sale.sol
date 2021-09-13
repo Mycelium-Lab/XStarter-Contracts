@@ -1,5 +1,5 @@
 pragma solidity 0.6.2;
-import "./CaseStaking.sol";
+import "./XStarterStaking.sol";
 import "./ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 contract Sale{
@@ -7,7 +7,7 @@ contract Sale{
     using SafeERC20 for ERC20;
     
     ERC20 erc20Token;
-    CaseStaking caseStaking;
+    XStarterStaking caseStaking;
     address admin;
     address tokenCreator;
     mapping(address => uint256) balances;
@@ -39,7 +39,7 @@ contract Sale{
         uint256 amount
         );
     modifier onlyAdmin {
-        require(msg.sender == admin, "Only admin can create new sales!");
+        require(msg.sender == admin, "This function can be used only by admin.");
         _;
     }
     constructor(
@@ -58,6 +58,7 @@ contract Sale{
         public
     {
         require(_startTimestamp < _endTimestamp && now < _endTimestamp, "Invalid timestamp values.");
+        //require(_tiersMaxAmountValues.length == caseStaking.amountOfTiers(), "Invalid amount of tiers");
         tokenAddress = _tokenAddress;
         erc20Token = ERC20(_tokenAddress);
         tokenName = _tokenName;
@@ -69,7 +70,7 @@ contract Sale{
         price = _price;
         description = _description;
         admin = _admin;
-        caseStaking = CaseStaking(_caseStaking);
+        caseStaking = XStarterStaking(_caseStaking);
     }
     function changePrice(uint256 newPrice) public onlyAdmin{
         require(now < startTimestamp, "Sale has already started.");
