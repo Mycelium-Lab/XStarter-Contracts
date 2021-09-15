@@ -1,6 +1,6 @@
 const XStarterToken = artifacts.require("XStarterToken")
 const TokenProxy = artifacts.require("TokenProxy")
-const CaseStaking = artifacts.require("CaseStaking")
+const XStarterStaking = artifacts.require("XStarterStaking")
 
 module.exports = (deployer, network, accounts) => {
   const [admin] = accounts
@@ -10,11 +10,9 @@ module.exports = (deployer, network, accounts) => {
     const proxyInstance = await TokenProxy.deployed()
     const tokenInstance = await XStarterToken.at(proxyInstance.address)
   
-    const caseStaking = await deployer.deploy(CaseStaking, proxyInstance.address, admin, DEFAULT_TIER_VALUES)
-
-    await caseStaking.init()
+    const xStarterStaking = await deployer.deploy(XStarterStaking, proxyInstance.address, admin, DEFAULT_TIER_VALUES)
     const minter_role = await tokenInstance.MINTER_ROLE()
-    await tokenInstance.grantRole(minter_role, caseStaking.address, {
+    await tokenInstance.grantRole(minter_role, xStarterStaking.address, {
       from: admin,
     })
   })

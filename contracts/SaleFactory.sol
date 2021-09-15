@@ -4,7 +4,7 @@ import "./XStarterStaking.sol";
 contract SaleFactory{
     uint256 salesAmount = 0;
     address private admin;
-    XStarterStaking caseStaking;
+    XStarterStaking xStarterStaking;
     event saleCreated(
         string tokenName, 
         address tokenAddress, 
@@ -17,9 +17,9 @@ contract SaleFactory{
         string  description,
         address saleAddress
         );
-    constructor(address _admin, address _caseStaking) public {
+    constructor(address _admin, address _xStarterStaking) public {
         admin = _admin;
-        caseStaking = XStarterStaking(_caseStaking);
+        xStarterStaking = XStarterStaking(_xStarterStaking);
     }
     modifier onlyAdmin {
         require(msg.sender == admin, "Only admin can create new sales!");
@@ -51,7 +51,7 @@ contract SaleFactory{
             _price, 
             _description, 
             admin,
-            address(caseStaking)
+            address(xStarterStaking)
         );
         emit saleCreated(
             _tokenName, 
