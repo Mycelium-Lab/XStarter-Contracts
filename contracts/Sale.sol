@@ -140,9 +140,14 @@ contract Sale{
     }
     function withdrawSaleResult() public onlySaler{
         require(now > endTimestamp, "Can withdraw only after sale ended");
-        erc20Token.safeTransfer(msg.sender, SafeMath.sub(hardcap, totalTokensSold));
         if(totalTokensSold >= softcap){
+            uint256 tokenWithdrawAmount = SafeMath.sub(hardcap, totalTokensSold);
+            if(tokenWithdrawAmount > 0){
+                erc20Token.safeTransfer(msg.sender, tokenWithdrawAmount);
+            }
             msg.sender.transfer(address(this).balance);
+        }else{
+            erc20Token.safeTransfer(msg.sender, hardcap);
         }
     }
 }
