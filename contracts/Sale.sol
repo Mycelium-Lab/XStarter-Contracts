@@ -112,9 +112,10 @@ contract Sale{
         tokenBalances[msg.sender] = 0;
         balances[msg.sender] = 0;
     }
-    function buyTokens() payable public returns(uint256){
+    function buyTokens() payable public{
         require(isSaleActive(), "This sale has already ended or not started.");
         require(msg.value > 0, "Insufficient funds.");
+        require(softcap <= hardcap, "Softcap is greater than hardcap. This sale is invalid.");
         uint256 excessAmount = msg.value % price;
         uint256 purchaseAmount = SafeMath.sub(msg.value, excessAmount);
         uint256 tokenPurchase = SafeMath.div(purchaseAmount, price);
@@ -140,6 +141,8 @@ contract Sale{
     function withdrawSaleResult() public onlySaler{
         require(now > endTimestamp, "Can withdraw only after sale ended");
         erc20Token.safeTransfer(msg.sender, SafeMath.sub(hardcap, totalTokensSold));
-        msg.sender.transfer(address(this).balance);
+        if(totalTokensSold >= softcap){
+            msg.sender.transfer(address(this).balance);
+        }
     }
 }
