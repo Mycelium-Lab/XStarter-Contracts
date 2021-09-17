@@ -223,6 +223,8 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
       assert.deepEqual(aliceBalance.toString(), web3.utils.toWei('0.1').toString());
       const totalTokensSold = await this.sale.totalTokensSold();
       assert.deepEqual(totalTokensSold.toString(), "1000000000000");
+      let participants = await this.sale.numberOfParticipants();
+      assert.deepEqual(participants.toString(), "1")
     })
     it("Can't change price when sale started", async () => {
       await expectRevert(this.sale.changePrice(web3.utils.toWei('2'), {from: admin}), "Sale has already started.")

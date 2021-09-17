@@ -21,6 +21,7 @@ contract Sale{
     uint256 public price;
     string public description;
     mapping(address => uint256) public tokenBalances;
+    uint256 public numberOfParticipants;
     uint256 public totalTokensSold;
     uint256 public hardcap;
     event tokensSold(
@@ -128,6 +129,9 @@ contract Sale{
             msg.sender.transfer(excessAmount);
         }
         totalTokensSold = SafeMath.add(totalTokensSold, tokenPurchase);
+        if(balances[msg.sender] == 0 && tokenBalances[msg.sender] == 0){
+            numberOfParticipants = SafeMath.add(numberOfParticipants, 1);
+        }
         balances[msg.sender] = SafeMath.add(balances[msg.sender], purchaseAmount);
         tokenBalances[msg.sender] = SafeMath.add(tokenBalances[msg.sender], tokenPurchase);
         emit tokensSold(msg.sender, tokenPurchase, purchaseAmount);
