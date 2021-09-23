@@ -9,10 +9,10 @@ contract Sale{
     ERC20 erc20Token;
     XStarterStaking xStarterStaking;
     address admin;
-    address tokenCreator;
     mapping(address => uint256) public balances;
      
     string public tokenName;
+    address public tokenCreator;
     address public tokenAddress;
     uint256 public softcap;
     uint256[] public tiersMaxAmountValues;
