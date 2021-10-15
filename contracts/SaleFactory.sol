@@ -1,9 +1,9 @@
 pragma solidity 0.6.2;
 import "./Sale.sol";
 import "./XStarterStaking.sol";
-contract SaleFactory{
+import "./HasAdmin.sol";
+contract SaleFactory is HasAdmin{
     uint256 salesAmount = 0;
-    address private admin;
     XStarterStaking xStarterStaking;
     event saleCreated(
         string tokenName, 
@@ -17,13 +17,8 @@ contract SaleFactory{
         string  description,
         address saleAddress
         );
-    constructor(address _admin, address _xStarterStaking) public {
-        admin = _admin;
+    constructor(address _admin, address _xStarterStaking) public HasAdmin(_admin){
         xStarterStaking = XStarterStaking(_xStarterStaking);
-    }
-    modifier onlyAdmin {
-        require(msg.sender == admin, "Only admin can create new sales!");
-        _;
     }
     function createNewSale(
         string memory _tokenName, 

@@ -1,14 +1,14 @@
 pragma solidity 0.6.2;
 import "./XStarterStaking.sol";
+import "./HasAdmin.sol";
 import "./ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-contract Sale{
+contract Sale is HasAdmin{
     using SafeMath for uint256;
     using SafeERC20 for ERC20;
     
     ERC20 erc20Token;
     XStarterStaking xStarterStaking;
-    address admin;
     mapping(address => uint256) public balances;
      
     string public tokenName;
@@ -41,10 +41,6 @@ contract Sale{
         uint256 amount,
         uint256 newHardcap
         );
-    modifier onlyAdmin {
-        require(msg.sender == admin, "This function can be used only by admin.");
-        _;
-    }
     modifier onlySaler {
         require(msg.sender == tokenCreator, "This function can be used only by sale owner!");
         _;
@@ -62,6 +58,7 @@ contract Sale{
         address _admin,
         address _xStarterStaking
     )
+        HasAdmin(_admin)
         public
     {
         require(_startTimestamp < _endTimestamp && now < _endTimestamp, "Invalid timestamp values.");
@@ -77,7 +74,6 @@ contract Sale{
         endTimestamp = _endTimestamp;
         price = _price;
         description = _description;
-        admin = _admin;
     }
     function changePrice(uint256 newPrice) public onlyAdmin{
         require(now < startTimestamp, "Sale has already started.");

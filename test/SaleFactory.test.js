@@ -137,6 +137,34 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
       this.currentTimestamp = block.timestamp
       this.tommorow = this.currentTimestamp  + this.SECONDS_IN_DAY
       this.dayAfterTommorow = this.currentTimestamp + 2 * this.SECONDS_IN_DAY
+      // Alice can't create sale
+      await expectRevert.unspecified(this.saleFactory.createNewSale(
+        randomTokenName,
+        this.randomToken.address,
+        admin,
+        this.addDecimals(1000, randomTokenDecimals),
+        [0, 10, 100, 1000, 1500, 2000, 3000, 10000, 20000].map(value => this.addDecimals(value, randomTokenDecimals)),
+        this.tommorow,
+        this.dayAfterTommorow,
+        web3.utils.toWei("2"),
+        'description',
+        { from: alice }
+      ))
+      await this.saleFactory.changeAdmin(alice, {from: admin})
+      await expectRevert.unspecified(this.saleFactory.createNewSale(
+        randomTokenName,
+        this.randomToken.address,
+        admin,
+        this.addDecimals(1000, randomTokenDecimals),
+        [0, 10, 100, 1000, 1500, 2000, 3000, 10000, 20000].map(value => this.addDecimals(value, randomTokenDecimals)),
+        this.tommorow,
+        this.dayAfterTommorow,
+        web3.utils.toWei("2"),
+        'description',
+        { from: admin }
+      ))
+      await expectRevert.unspecified(this.saleFactory.changeAdmin(admin, {from:admin}))
+      await this.saleFactory.changeAdmin(admin, {from: alice})
       const saleCreatedReceipt = await this.saleFactory.createNewSale(
         randomTokenName,
         this.randomToken.address,
@@ -200,6 +228,26 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
     })
     it("Only admin can change price", async() => {
       await expectRevert(this.sale.changePrice(web3.utils.toWei('2'), {from: alice}), 'This function can be used only by admin.')
+    })
+    it("Admin can be changed, new admin can change price", async() => {
+      // Alice can't change price
+      await expectRevert.unspecified(this.sale.changePrice(web3.utils.toWei('2'), {from: alice}))
+      // Alice can't change admin
+      await expectRevert.unspecified(this.sale.changeAdmin(alice, {from:alice}))
+      // Admin can change admin to alice
+      await this.sale.changeAdmin(alice, {from: admin});
+      // Alice can change price
+      await this.sale.changePrice(web3.utils.toWei('2'), {from: alice});
+      let newPrice = await this.sale.price()
+      assert.deepEqual(newPrice.toString(), web3.utils.toWei('2').toString())
+      // Admin can't change admin to admin
+      await expectRevert.unspecified(this.sale.changeAdmin(admin, {from:admin}))
+      // Alice changes admin to admin, admin can change price back
+      await this.sale.changeAdmin(admin, {from:alice})
+      const price = new web3.utils.BN(parseFloat('1') * Math.pow(10, 13));
+      await this.sale.changePrice(price.toString(), {from: admin})
+      newPrice = await this.sale.price()
+      assert.deepEqual(newPrice.toString(), price.toString())
     })
     it("Can't buy tokens if sale hasn't started yet", async () => {
       await expectRevert(this.sale.buyTokens({ from: alice, value: web3.utils.toWei('1') }), 'This sale has already ended or not started.')
