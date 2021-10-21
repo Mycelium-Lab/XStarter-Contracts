@@ -1,4 +1,4 @@
-const { assert } = require("chai")
+const { assert, expect } = require("chai")
 const { ether } = require("@openzeppelin/test-helpers")
 const BigNumber = require("bignumber.js")
 
@@ -129,7 +129,22 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
       // check alise's tier
       const aliceTierLevelStaked = await this.xStarterStaking.userTiers(alice);
       assert.deepEqual(aliceTierLevelStaked.toString(), "7")
-
+      
+    })
+    it("Admin can be changed, only admin can give permissions to create new sales.", async () => {
+      // Check if admin is set in constructor
+      let currentAdmin = await this.saleFactory.admin()
+      assert.deepEqual(currentAdmin, admin)
+      // Alice can't give permission to create sales
+      await expectRevert.unspecified(this.saleFactory.setSaleCreator(alice, true, {from: alice}))
+      // Alice can't change admin
+      await expectRevert.unspecified(this.saleFactory.changeAdmin(alice, {from: alice}))
+      // Admin can change admin
+      await this.saleFactory.changeAdmin(alice, {from: admin})
+      // Admin can give permission to create sales
+      await this.saleFactory.setSaleCreator(alice, true, {from: alice})
+      currentAdmin = await this.saleFactory.admin()
+      assert.deepEqual(currentAdmin, alice)
     })
     it("Creates sale and emits a saleCreated event", async () => {
       const blockNumber = await web3.eth.getBlockNumber()
@@ -137,20 +152,7 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
       this.currentTimestamp = block.timestamp
       this.tommorow = this.currentTimestamp  + this.SECONDS_IN_DAY
       this.dayAfterTommorow = this.currentTimestamp + 2 * this.SECONDS_IN_DAY
-      // Alice can't create sale
-      await expectRevert.unspecified(this.saleFactory.createNewSale(
-        randomTokenName,
-        this.randomToken.address,
-        admin,
-        this.addDecimals(1000, randomTokenDecimals),
-        [0, 10, 100, 1000, 1500, 2000, 3000, 10000, 20000].map(value => this.addDecimals(value, randomTokenDecimals)),
-        this.tommorow,
-        this.dayAfterTommorow,
-        web3.utils.toWei("2"),
-        'description',
-        { from: alice }
-      ))
-      await this.saleFactory.changeAdmin(alice, {from: admin})
+      // Can't create sale without permission
       await expectRevert.unspecified(this.saleFactory.createNewSale(
         randomTokenName,
         this.randomToken.address,
@@ -163,8 +165,7 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
         'description',
         { from: admin }
       ))
-      await expectRevert.unspecified(this.saleFactory.changeAdmin(admin, {from:admin}))
-      await this.saleFactory.changeAdmin(admin, {from: alice})
+      await this.saleFactory.setSaleCreator(admin, true, {from: alice})
       const saleCreatedReceipt = await this.saleFactory.createNewSale(
         randomTokenName,
         this.randomToken.address,
@@ -189,11 +190,16 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
 				"10000000000000",
 				{ from: admin }
 			);
-      await this.sale.addTokensForSale("10000000000000");
-      const hardcap = await this.sale.hardcap();
-      assert.deepEqual(hardcap.toString(), "10000000000000");
+      // Can't add tokens if sale isn't approved
+      await expectRevert.unspecified(this.sale.addTokensForSale("10000000000000"))
+
+      await this.sale.approve({from:admin})
+      await this.sale.addTokensForSale("10000000000000")
+      const hardcap = await this.sale.hardcap()
+      assert.deepEqual(hardcap.toString(), "10000000000000")
     })
     it("Check the initial values of the sale", async () => {
+      const approved = await this.sale.approved();
       const isSaleActive = await this.sale.isSaleActive()
       const hasSaleEnded = await this.sale.hasSaleEnded()
       const tokenName = await this.sale.tokenName()
@@ -206,7 +212,7 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
       const totalTokensSold = await this.sale.totalTokensSold()
       const aliceTokenBalance = await this.sale.tokenBalances(alice)
 
-
+      assert.deepEqual(approved, true)
       assert.deepEqual(isSaleActive, false)
       assert.deepEqual(hasSaleEnded, false)
       assert.deepEqual(tokenName, randomTokenName)

@@ -10,7 +10,7 @@ contract Sale is HasAdmin{
     ERC20 erc20Token;
     XStarterStaking xStarterStaking;
     mapping(address => uint256) public balances;
-     
+    bool public approved;
     string public tokenName;
     address public tokenCreator;
     address public tokenAddress;
@@ -45,6 +45,10 @@ contract Sale is HasAdmin{
         require(msg.sender == tokenCreator, "This function can be used only by sale owner!");
         _;
     }
+    modifier saleApproved {
+        require(approved, "Sale is not approved.");
+        _;
+    }
     constructor(
         string memory _tokenName, 
         address _tokenAddress, 
@@ -74,6 +78,7 @@ contract Sale is HasAdmin{
         endTimestamp = _endTimestamp;
         price = _price;
         description = _description;
+        approved = false;
     }
     function changePrice(uint256 newPrice) public onlyAdmin{
         require(now < startTimestamp, "Sale has already started.");
@@ -93,7 +98,7 @@ contract Sale is HasAdmin{
         return now;
     }
     function withdrawFunds() public {
-        require(balances[msg.sender] >= 0, "You didn't participate in sale.");
+        require(balances[msg.sender] > 0, "You didn't participate in sale.");
         require(now > endTimestamp, "You can't withdraw when sale is in progress");
         require(totalTokensSold < softcap, "You can't withdraw because sale reached softcap");
         msg.sender.transfer(balances[msg.sender]);
@@ -109,7 +114,7 @@ contract Sale is HasAdmin{
         tokenBalances[msg.sender] = 0;
         balances[msg.sender] = 0;
     }
-    function buyTokens() payable public{
+    function buyTokens() payable saleApproved public{
         require(isSaleActive(), "This sale has already ended or not started.");
         require(msg.value > 0, "Insufficient funds.");
         require(softcap <= hardcap, "Softcap is greater than hardcap. This sale is invalid.");
@@ -132,14 +137,15 @@ contract Sale is HasAdmin{
         tokenBalances[msg.sender] = SafeMath.add(tokenBalances[msg.sender], tokenPurchase);
         emit tokensSold(msg.sender, tokenPurchase, purchaseAmount);
     }
-    function addTokensForSale(uint256 amount) public onlySaler{
-        require(now < startTimestamp, "Can't do it after sale started");
+    function addTokensForSale(uint256 amount) public saleApproved onlySaler{
+        require(now < startTimestamp, "Can't do it after sale started.");
         erc20Token.safeTransferFrom(msg.sender, address(this), amount);
         hardcap = SafeMath.add(hardcap, amount);
         emit hardcapIncreased(amount, hardcap);
     }
     function withdrawSaleResult() public onlySaler{
-        require(now > endTimestamp, "Can withdraw only after sale ended");
+        require(now > endTimestamp, "Can withdraw only after sale ended.");
+        require(hardcap > 0 || totalTokensSold >= softcap, "There's nothing to withdraw.");
         if(totalTokensSold >= softcap){
             uint256 tokenWithdrawAmount = SafeMath.sub(hardcap, totalTokensSold);
             if(tokenWithdrawAmount > 0){
@@ -149,5 +155,8 @@ contract Sale is HasAdmin{
         }else{
             erc20Token.safeTransfer(msg.sender, hardcap);
         }
+    }
+    function approve() public onlyAdmin{
+        approved = true;
     }
 }

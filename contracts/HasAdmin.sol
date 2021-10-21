@@ -1,7 +1,7 @@
 pragma solidity 0.6.2;
 
-contract HasAdmin{
-    address internal admin;
+abstract contract HasAdmin{
+    address public admin;
     constructor(address _admin) internal{
         admin = _admin;
     }

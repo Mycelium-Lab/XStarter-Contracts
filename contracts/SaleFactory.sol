@@ -5,6 +5,7 @@ import "./HasAdmin.sol";
 contract SaleFactory is HasAdmin{
     uint256 salesAmount = 0;
     XStarterStaking xStarterStaking;
+    mapping(address => bool) public saleCreators;
     event saleCreated(
         string tokenName, 
         address tokenAddress, 
@@ -32,9 +33,9 @@ contract SaleFactory is HasAdmin{
         string memory _description
     ) 
         public 
-        onlyAdmin 
         returns (address)
     {
+        require(saleCreators[msg.sender], "You don't have permission to create sales.");
         Sale sale = new Sale(
             _tokenName, 
             _tokenAddress,
@@ -45,7 +46,7 @@ contract SaleFactory is HasAdmin{
             _endTimestamp, 
             _price, 
             _description, 
-            admin,
+            msg.sender,
             address(xStarterStaking)
         );
         emit saleCreated(
@@ -61,5 +62,8 @@ contract SaleFactory is HasAdmin{
             address(sale)
             );
         return address(sale);
+    }
+    function setSaleCreator(address user, bool value) public onlyAdmin{
+        saleCreators[user] = value;
     }
 }
