@@ -145,6 +145,7 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
       await this.saleFactory.setSaleCreator(alice, true, {from: alice})
       currentAdmin = await this.saleFactory.admin()
       assert.deepEqual(currentAdmin, alice)
+      await this.saleFactory.changeAdmin(admin, {from: alice})
     })
     it("Creates sale and emits a saleCreated event", async () => {
       const blockNumber = await web3.eth.getBlockNumber()
@@ -165,7 +166,7 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
         'description',
         { from: admin }
       ))
-      await this.saleFactory.setSaleCreator(admin, true, {from: alice})
+      await this.saleFactory.setSaleCreator(admin, true, {from: admin})
       const saleCreatedReceipt = await this.saleFactory.createNewSale(
         randomTokenName,
         this.randomToken.address,
@@ -185,16 +186,14 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
     it("Can add tokens for sale", async () => {
       //Mint and approve 100,000 TKN
       await this.randomToken.mint(admin, "10000000000000");
+      
       await this.randomToken.approve(
 				this.sale.address,
 				"10000000000000",
 				{ from: admin }
-			);
-      // Can't add tokens if sale isn't approved
-      await expectRevert.unspecified(this.sale.addTokensForSale("10000000000000"))
-
-      await this.sale.approve({from:admin})
+			)
       await this.sale.addTokensForSale("10000000000000")
+      await this.sale.approve({from:admin})
       const hardcap = await this.sale.hardcap()
       assert.deepEqual(hardcap.toString(), "10000000000000")
     })
@@ -232,24 +231,19 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
       const newPrice = await this.sale.price()
       assert.deepEqual(newPrice.toString(), price.toString())
     })
-    it("Only admin can change price", async() => {
-      await expectRevert(this.sale.changePrice(web3.utils.toWei('2'), {from: alice}), 'This function can be used only by admin.')
-    })
     it("Admin can be changed, new admin can change price", async() => {
       // Alice can't change price
       await expectRevert.unspecified(this.sale.changePrice(web3.utils.toWei('2'), {from: alice}))
-      // Alice can't change admin
-      await expectRevert.unspecified(this.sale.changeAdmin(alice, {from:alice}))
       // Admin can change admin to alice
-      await this.sale.changeAdmin(alice, {from: admin});
+      await this.saleFactory.changeAdmin(alice, {from: admin});
       // Alice can change price
       await this.sale.changePrice(web3.utils.toWei('2'), {from: alice});
       let newPrice = await this.sale.price()
       assert.deepEqual(newPrice.toString(), web3.utils.toWei('2').toString())
       // Admin can't change admin to admin
-      await expectRevert.unspecified(this.sale.changeAdmin(admin, {from:admin}))
+      await expectRevert.unspecified(this.saleFactory.changeAdmin(admin, {from:admin}))
       // Alice changes admin to admin, admin can change price back
-      await this.sale.changeAdmin(admin, {from:alice})
+      await this.saleFactory.changeAdmin(admin, {from:alice})
       const price = new web3.utils.BN(parseFloat('1') * Math.pow(10, 13));
       await this.sale.changePrice(price.toString(), {from: admin})
       newPrice = await this.sale.price()

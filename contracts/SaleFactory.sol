@@ -46,7 +46,6 @@ contract SaleFactory is HasAdmin{
             _endTimestamp, 
             _price, 
             _description, 
-            msg.sender,
             address(xStarterStaking)
         );
         emit saleCreated(
