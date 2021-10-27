@@ -86,9 +86,10 @@ contract Sale{
         approved = false;
         saleFactory = SaleFactory(msg.sender);
     }
-    function changePrice(uint256 newPrice) public onlyAdmin{
+    function changePrice(uint256 newPrice) public onlySaler{
         require(now < startTimestamp, "Sale has already started.");
         require(newPrice > 0);
+        approved = false;
         price = newPrice;
     }
     function getCustomerTier(address customer) internal view returns (uint256){

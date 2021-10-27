@@ -226,28 +226,17 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
     })
     it("Can change price if sale hasn't started yet", async () => {
       // 1 TKN = 0.00001 ETH
+      // Alice can't change price
+      await expectRevert.unspecified(this.sale.changePrice(web3.utils.toWei('2'), {from: alice}))
       const price = new web3.utils.BN(parseFloat('1') * Math.pow(10, 13));
       await this.sale.changePrice(price.toString(), {from: admin})
       const newPrice = await this.sale.price()
       assert.deepEqual(newPrice.toString(), price.toString())
-    })
-    it("Admin can be changed, new admin can change price", async() => {
-      // Alice can't change price
-      await expectRevert.unspecified(this.sale.changePrice(web3.utils.toWei('2'), {from: alice}))
-      // Admin can change admin to alice
-      await this.saleFactory.changeAdmin(alice, {from: admin});
-      // Alice can change price
-      await this.sale.changePrice(web3.utils.toWei('2'), {from: alice});
-      let newPrice = await this.sale.price()
-      assert.deepEqual(newPrice.toString(), web3.utils.toWei('2').toString())
-      // Admin can't change admin to admin
-      await expectRevert.unspecified(this.saleFactory.changeAdmin(admin, {from:admin}))
-      // Alice changes admin to admin, admin can change price back
-      await this.saleFactory.changeAdmin(admin, {from:alice})
-      const price = new web3.utils.BN(parseFloat('1') * Math.pow(10, 13));
-      await this.sale.changePrice(price.toString(), {from: admin})
-      newPrice = await this.sale.price()
-      assert.deepEqual(newPrice.toString(), price.toString())
+      let approved = await this.sale.approved();
+      assert.deepEqual(approved, false)
+      await this.sale.approve({from:admin})
+      approved = await this.sale.approved();
+      assert.deepEqual(approved, true)
     })
     it("Can't buy tokens if sale hasn't started yet", async () => {
       await expectRevert(this.sale.buyTokens({ from: alice, value: web3.utils.toWei('1') }), 'This sale has already ended or not started.')
