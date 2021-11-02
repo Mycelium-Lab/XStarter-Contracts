@@ -26,7 +26,7 @@ contract Sale{
     uint256 public numberOfParticipants;
     uint256 public totalTokensSold;
     uint256 public hardcap;
-    
+    bool public saleRewardWithdrawn;
     event tokensSold(
         address buyer,
         uint256 amount,
@@ -84,6 +84,7 @@ contract Sale{
         price = _price;
         description = _description;
         approved = false;
+        saleRewardWithdrawn = false;
         saleFactory = SaleFactory(msg.sender);
     }
     function changePrice(uint256 newPrice) public onlySaler{
@@ -105,16 +106,17 @@ contract Sale{
         return now;
     }
     function withdrawFunds() public {
+        require(now > endTimestamp, "You can't withdraw when sale is in progress or hasn't started yet.");
+        require(totalTokensSold < softcap, "You can't withdraw because sale reached softcap.");
         require(balances[msg.sender] > 0, "You didn't participate in sale.");
-        require(now > endTimestamp, "You can't withdraw when sale is in progress");
-        require(totalTokensSold < softcap, "You can't withdraw because sale reached softcap");
         msg.sender.transfer(balances[msg.sender]);
         emit fundsWithdrawn(msg.sender, balances[msg.sender]);
         balances[msg.sender] = 0;
+        tokenBalances[msg.sender] = 0;
     }
     function withdrawBoughtTokens() public {
-        require(balances[msg.sender] > 0 && tokenBalances[msg.sender] > 0, "Insufficient funds.");
         require(hasSaleEnded() && softcap <= totalTokensSold, "Sale didn't end or didn't reach softcap.");
+        require(balances[msg.sender] > 0 && tokenBalances[msg.sender] > 0, "Insufficient funds.");
         require(hardcap >= tokenBalances[msg.sender], "Contract doesn't have sufficient amount of tokens.");
         erc20Token.safeTransfer(msg.sender, tokenBalances[msg.sender]);
         emit tokensWithdrawn(msg.sender, tokenBalances[msg.sender]);
@@ -130,7 +132,7 @@ contract Sale{
         uint256 tokenPurchase = SafeMath.div(purchaseAmount, price);
         uint256 decimals = 10 ** uint256(erc20Token.decimals());
         tokenPurchase = SafeMath.mul(tokenPurchase, decimals);
-        require(tokenPurchase <= tiersMaxAmountValues[xStarterStaking.userTiers(msg.sender)], "Your tier is too low to buy this amount of tokens.");
+        require(SafeMath.add(tokenPurchase, tokenBalances[msg.sender]) <= tiersMaxAmountValues[xStarterStaking.userTiers(msg.sender)], "Your tier is too low to buy this amount of tokens.");
         uint256 totalTokensNeeded = SafeMath.add(tokenPurchase, totalTokensSold);
         require(hardcap >= totalTokensNeeded, "Contract doesn't have sufficient amount of tokens.");
         if (excessAmount > 0) {
@@ -145,7 +147,7 @@ contract Sale{
         emit tokensSold(msg.sender, tokenPurchase, purchaseAmount);
     }
     function addTokensForSale(uint256 amount) public onlySaler{
-        require(now < startTimestamp, "Can't do it after sale started.");
+        require(now < startTimestamp, "Can't add tokens after sale has started.");
         erc20Token.safeTransferFrom(msg.sender, address(this), amount);
         hardcap = SafeMath.add(hardcap, amount);
         emit hardcapIncreased(amount, hardcap);
@@ -153,6 +155,7 @@ contract Sale{
     function withdrawSaleResult() public onlySaler{
         require(now > endTimestamp || !approved, "Can withdraw only after approved sale ended.");
         require(hardcap > 0 || totalTokensSold >= softcap, "There's nothing to withdraw.");
+        require(!saleRewardWithdrawn, "Sale reward has already been withdrawn.");
         if(totalTokensSold >= softcap){
             uint256 tokenWithdrawAmount = SafeMath.sub(hardcap, totalTokensSold);
             if(tokenWithdrawAmount > 0){
@@ -164,6 +167,9 @@ contract Sale{
             hardcap = 0;
         }else{
             erc20Token.safeTransfer(msg.sender, hardcap);
+        }
+        if(approved && now > endTimestamp){
+            saleRewardWithdrawn = true;
         }
     }
     function approve() public onlyAdmin{

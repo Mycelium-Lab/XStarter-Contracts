@@ -11,7 +11,7 @@ const CaseToken_V2 = artifacts.require("CaseToken_V2")
 const { web3 } = require("@openzeppelin/test-helpers/src/setup")
 const { expectRevert, expectEvent } = require('@openzeppelin/test-helpers');
 
-contract("Test SaleFactory and Sale contracts", function (accounts) {
+contract("SaleFactory and Sale", function (accounts) {
   const [admin, proxyAdmin, alice, john, jack, bob, sam, kyle, dale, homer, harry, james, george, edward, ryan, eric, tom, ben, jen, ken, ...rest] = accounts
   const randomTokenName = "Token"
   const randomTokenDecimals = 8
@@ -40,6 +40,7 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
     this.randomToken = await CaseToken_V2.new({ from: admin })
     await this.randomToken.changeTokenData(randomTokenName, "TKN", randomTokenDecimals)
     await this.randomToken.initialize(admin);
+    
     // extras
     this.timeTravel = function (time) {
       return new Promise(function (resolve, reject) {
@@ -113,8 +114,8 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
     this.ZERO_ADDR = "0x0000000000000000000000000000000000000000"
     this.SECONDS_IN_DAY = 86400
   })
-  describe("Test Creating New Sale", async () => {
-    it("Case staking setup", async () => {
+  describe("Initial setup", async () => {
+    it("XStarterStaking setup", async () => {
       // mint tokens to alice for staking
       await this.setupTokensForStaking(alice, this.CASE_10000)
       const initBalanceAlice = await this.tokenInstance.balanceOf(alice)
@@ -128,20 +129,18 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
       )
       // check alise's tier
       const aliceTierLevelStaked = await this.xStarterStaking.userTiers(alice);
-      assert.deepEqual(aliceTierLevelStaked.toString(), "7")
-      
     })
+  })
+  describe("SaleFactory", async () => {
     it("Admin can be changed, only admin can give permissions to create new sales.", async () => {
       // Check if admin is set in constructor
       let currentAdmin = await this.saleFactory.admin()
       assert.deepEqual(currentAdmin, admin)
-      // Alice can't give permission to create sales
-      await expectRevert.unspecified(this.saleFactory.setSaleCreator(alice, true, {from: alice}))
-      // Alice can't change admin
-      await expectRevert.unspecified(this.saleFactory.changeAdmin(alice, {from: alice}))
-      // Admin can change admin
+      // Alice can't give permission to create sales, can't change admin
+      await expectRevert(this.saleFactory.setSaleCreator(alice, true, {from: alice}), "This function can be used only by admin.")
+      await expectRevert(this.saleFactory.changeAdmin(alice, {from: alice}), "This function can be used only by admin.")
+      // Admin can change admin, can give permission to create sales
       await this.saleFactory.changeAdmin(alice, {from: admin})
-      // Admin can give permission to create sales
       await this.saleFactory.setSaleCreator(alice, true, {from: alice})
       currentAdmin = await this.saleFactory.admin()
       assert.deepEqual(currentAdmin, alice)
@@ -154,7 +153,7 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
       this.tommorow = this.currentTimestamp  + this.SECONDS_IN_DAY
       this.dayAfterTommorow = this.currentTimestamp + 2 * this.SECONDS_IN_DAY
       // Can't create sale without permission
-      await expectRevert.unspecified(this.saleFactory.createNewSale(
+      await expectRevert(this.saleFactory.createNewSale(
         randomTokenName,
         this.randomToken.address,
         admin,
@@ -165,7 +164,7 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
         web3.utils.toWei("2"),
         'description',
         { from: admin }
-      ))
+      ), "You don't have permission to create sales.")
       await this.saleFactory.setSaleCreator(admin, true, {from: admin})
       const saleCreatedReceipt = await this.saleFactory.createNewSale(
         randomTokenName,
@@ -183,22 +182,11 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
       this.sale = await Sale.at(saleCreatedReceipt.logs[0].args.saleAddress);
 
     })
-    it("Can add tokens for sale", async () => {
-      //Mint and approve 100,000 TKN
-      await this.randomToken.mint(admin, "10000000000000");
-      
-      await this.randomToken.approve(
-				this.sale.address,
-				"10000000000000",
-				{ from: admin }
-			)
-      await this.sale.addTokensForSale("10000000000000")
-      await this.sale.approve({from:admin})
-      const hardcap = await this.sale.hardcap()
-      assert.deepEqual(hardcap.toString(), "10000000000000")
-    })
+  })
+  describe("Before sale starts", async () => {
     it("Check the initial values of the sale", async () => {
       const approved = await this.sale.approved();
+      const saleRewardWithdrawn = await this.sale.saleRewardWithdrawn();
       const isSaleActive = await this.sale.isSaleActive()
       const hasSaleEnded = await this.sale.hasSaleEnded()
       const tokenName = await this.sale.tokenName()
@@ -211,7 +199,8 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
       const totalTokensSold = await this.sale.totalTokensSold()
       const aliceTokenBalance = await this.sale.tokenBalances(alice)
 
-      assert.deepEqual(approved, true)
+      assert.deepEqual(approved, false)
+      assert.deepEqual(saleRewardWithdrawn, false)
       assert.deepEqual(isSaleActive, false)
       assert.deepEqual(hasSaleEnded, false)
       assert.deepEqual(tokenName, randomTokenName)
@@ -224,7 +213,38 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
       assert.deepEqual(totalTokensSold.toString(), '0')
       assert.deepEqual(aliceTokenBalance.toString(), '0')
     })
-    it("Can change price if sale hasn't started yet", async () => {
+    it("Can add tokens for sale", async () => {
+      //Mint and approve 100,000 TKN
+      await this.randomToken.mint(admin, "10000000000000");
+      
+      await this.randomToken.approve(
+				this.sale.address,
+				"10000000000000",
+				{ from: admin }
+			)
+      await this.sale.addTokensForSale("10000000000000")
+     
+      const hardcap = await this.sale.hardcap()
+      assert.deepEqual(hardcap.toString(), "10000000000000")
+    })
+    it("Only 'TokenCreator' can add tokens to sale", async() => {
+      await this.randomToken.mint(bob, "10000000000000", {from:admin});
+      
+      await this.randomToken.approve(
+				this.sale.address,
+				"10000000000000",
+				{ from: bob }
+			)
+      await expectRevert(this.sale.addTokensForSale("10000000000000", {from:bob}), "This function can be used only by sale owner!")
+    })
+    it("Can approve sale", async () =>{
+      let approved = await this.sale.approved();
+      assert.deepEqual(approved, false)
+      await this.sale.approve({from:admin})
+      approved = await this.sale.approved();
+      assert.deepEqual(approved, true)
+    })
+    it("Can change price", async () => {
       // 1 TKN = 0.00001 ETH
       // Alice can't change price
       await expectRevert.unspecified(this.sale.changePrice(web3.utils.toWei('2'), {from: alice}))
@@ -232,6 +252,8 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
       await this.sale.changePrice(price.toString(), {from: admin})
       const newPrice = await this.sale.price()
       assert.deepEqual(newPrice.toString(), price.toString())
+    })
+    it("Sale is not approved after price change", async () => {
       let approved = await this.sale.approved();
       assert.deepEqual(approved, false)
       await this.sale.approve({from:admin})
@@ -241,17 +263,14 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
     it("Can't buy tokens if sale hasn't started yet", async () => {
       await expectRevert(this.sale.buyTokens({ from: alice, value: web3.utils.toWei('1') }), 'This sale has already ended or not started.')
     })
-    it("Can't withdraw funds if sale hasn't started yet", async () => {
-      await expectRevert.unspecified(this.sale.withdrawFunds({from:alice}))
-    })
-    it("Can't withdraw tokens if sale hasn't started yet", async () => {
-      await expectRevert.unspecified(this.sale.withdrawBoughtTokens({from:alice}))
-    })
+  })
+  describe("During sale", async () => {
     it("Can buy tokens when sale started", async () => {
       await this.advanceBlockAtTime(this.tommorow + 10);
       //await this.timeTravel(this.SECONDS_IN_DAY + 60);
       const isSaleActive = await this.sale.isSaleActive();
       assert.deepEqual(isSaleActive, true);
+      await expectRevert(this.sale.buyTokens({from:alice, value:'0'}), "Insufficient funds")
       // 0.1 eth = 10,000 TKN
       await this.sale.buyTokens({from:alice, value:web3.utils.toWei('0.1')})
       const aliceTokenBalance = await this.sale.tokenBalances(alice);
@@ -263,10 +282,34 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
       let participants = await this.sale.numberOfParticipants();
       assert.deepEqual(participants.toString(), "1")
     })
-    it("Can't change price when sale started", async () => {
+    it("Can't buy more tokens than tier limit", async () => {
+      await expectRevert(this.sale.buyTokens({from:alice, value:web3.utils.toWei('0.1')}), "Your tier is too low to buy this amount of tokens.")
+    })
+    it("Can't change price when sale has started", async () => {
       await expectRevert(this.sale.changePrice(web3.utils.toWei('2'), {from: admin}), "Sale has already started.")
     })
-    it("Can withdraw tokens after sale ended", async () => {
+    it("Can't withdraw funds if sale hasn't ended yet", async () => {
+      await expectRevert(this.sale.withdrawFunds({from:alice}), "You can't withdraw when sale is in progress or hasn't started yet.")
+    })
+    it("Can't withdraw tokens if sale hasn't ended yet", async () => {
+      await expectRevert(this.sale.withdrawBoughtTokens({from:alice}), "Sale didn't end or didn't reach softcap.")
+    })
+    it("Saler can't withdraw sale result ", async () => {
+      await expectRevert(this.sale.withdrawSaleResult({from:admin}), "Can withdraw only after approved sale ended.")
+    })
+    it("Can't add tokens after sale has started", async () => {
+      await this.randomToken.mint(admin, "10000000000000", {from:admin});
+      
+      await this.randomToken.approve(
+				this.sale.address,
+				"10000000000000",
+				{ from: admin }
+			)
+      await expectRevert(this.sale.addTokensForSale("10000000000000", {from:admin}), "Can't add tokens after sale has started.")
+    })
+  })
+  describe("After sale has ended", async () => {
+    it("Can withdraw tokens after sale has ended", async () => {
       await this.advanceBlockAtTime(this.dayAfterTommorow + 10);
       const isSaleActive = await this.sale.isSaleActive();
       assert.deepEqual(isSaleActive, false);
@@ -280,6 +323,17 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
       const aliceBalance = await this.sale.balances(alice);
       assert.deepEqual(aliceBalance.toString(), "0");
     })
+    it("Can't buy tokens if sale has already ended", async () => {
+      await expectRevert(this.sale.buyTokens({ from: alice, value: web3.utils.toWei('1') }), 'This sale has already ended or not started.')
+    })
+    it("Only people who participated in sale can withdraw bought tokens", async ()=> {
+      await expectRevert(this.sale.withdrawBoughtTokens({from: john}), "Insufficient funds.")
+      await expectRevert(this.sale.withdrawBoughtTokens({from: bob}), "Insufficient funds.")
+      await expectRevert(this.sale.withdrawBoughtTokens({from: sam}), "Insufficient funds.")
+    })
+    it("Buyer can't withdraw ethereum because sale has reached softcap", async () =>{
+      await expectRevert(this.sale.withdrawFunds({from: alice}), "You can't withdraw because sale reached softcap.")
+    })
     it("Can't withdraw second time", async () => {
       await expectRevert(this.sale.withdrawBoughtTokens({from: alice}), "Insufficient funds.");
     })
@@ -287,13 +341,182 @@ contract("Test SaleFactory and Sale contracts", function (accounts) {
       const balanceBefore = await web3.eth.getBalance(admin);
       const withdrawReceipt = await this.sale.withdrawSaleResult({from:admin});
       const tokenBalance = await this.randomToken.balanceOf(admin);
-      assert.deepEqual(tokenBalance.toString(), "9000000000000");
+      assert.deepEqual(tokenBalance.toString(), "19000000000000");
       const balanceAfter = await web3.eth.getBalance(admin);
       const gasPrice = await web3.eth.getGasPrice()
       let expectedBalance = new web3.utils.BN(balanceBefore)
       expectedBalance = expectedBalance.add(new web3.utils.BN(web3.utils.toWei('0.1')));
       expectedBalance = expectedBalance.sub(new web3.utils.BN(gasPrice * withdrawReceipt.receipt.gasUsed))
       assert.deepEqual(expectedBalance.toString(), balanceAfter.toString())
+      const saleRewardWithdrawn = await this.sale.saleRewardWithdrawn();
+      assert.deepEqual(saleRewardWithdrawn, true)
+    })
+    it("Saler can withdraw only once", async () => {
+      await expectRevert(this.sale.withdrawSaleResult({from:admin}), "Sale reward has already been withdrawn")
+    })
+  })
+  describe("Special cases", async () => {
+    it("Can't buy tokens if hardcap < softcap", async ()=>{
+      const blockNumber = await web3.eth.getBlockNumber()
+      const block = await web3.eth.getBlock(blockNumber)
+      this.currentTimestamp = block.timestamp
+      this.tommorow = this.currentTimestamp  + this.SECONDS_IN_DAY
+      this.dayAfterTommorow = this.currentTimestamp + 2 * this.SECONDS_IN_DAY
+      const price = new web3.utils.BN(parseFloat('1') * Math.pow(10, 13));
+      const saleCreatedReceipt = await this.saleFactory.createNewSale(
+        randomTokenName,
+        this.randomToken.address,
+        admin,
+        this.addDecimals(1000, randomTokenDecimals),
+        [0, 10, 100, 1000, 1500, 2000, 3000, 10000, 20000].map(value => this.addDecimals(value, randomTokenDecimals)),
+        this.tommorow,
+        this.dayAfterTommorow,
+        price.toString(),
+        'description',
+        { from: admin }
+      );
+      this.sale = await Sale.at(saleCreatedReceipt.logs[0].args.saleAddress);
+      await this.advanceBlockAtTime(this.tommorow + 10);
+      const isSaleActive = await this.sale.isSaleActive();
+      assert.deepEqual(isSaleActive, true);
+      await expectRevert(this.sale.buyTokens({ from: alice, value: web3.utils.toWei('1') }), 'Sale is not approved.')
+     
+    })
+    it("Can't buy tokens if sale is not approved", async ()=>{
+      const blockNumber = await web3.eth.getBlockNumber()
+      const block = await web3.eth.getBlock(blockNumber)
+      this.currentTimestamp = block.timestamp
+      this.tommorow = this.currentTimestamp  + this.SECONDS_IN_DAY
+      this.dayAfterTommorow = this.currentTimestamp + 2 * this.SECONDS_IN_DAY
+      const price = new web3.utils.BN(parseFloat('1') * Math.pow(10, 13));
+      const saleCreatedReceipt = await this.saleFactory.createNewSale(
+        randomTokenName,
+        this.randomToken.address,
+        admin,
+        "10000000000000",
+        [0, 10, 100, 1000, 1500, 2000, 3000, 10000, 20000].map(value => this.addDecimals(value, randomTokenDecimals)),
+        this.tommorow,
+        this.dayAfterTommorow,
+        price.toString(),
+        'description',
+        { from: admin }
+      );
+      this.sale = await Sale.at(saleCreatedReceipt.logs[0].args.saleAddress);
+      let tokenBalance = await this.randomToken.balanceOf(admin);
+      assert.deepEqual(tokenBalance.toString(), "19000000000000");
+      await this.randomToken.approve(
+				this.sale.address,
+				"19000000000000",
+				{ from: admin }
+			)
+      await this.sale.addTokensForSale("19000000000000", {from: admin})
+      await this.advanceBlockAtTime(this.tommorow + 10);
+      const isSaleActive = await this.sale.isSaleActive();
+      assert.deepEqual(isSaleActive, true);
+      await expectRevert(this.sale.buyTokens({ from: alice, value: web3.utils.toWei('1') }), 'Sale is not approved.')
+    })
+    it("Can't approve if sale has already started", async () => {
+      await expectRevert(this.sale.approve({from:admin}), "You can't approve this sale because it has already started.")
+    })
+    it("Saler can withdraw tokens if sale isn't approved", async () => {
+      await this.sale.withdrawSaleResult({from: admin})
+      const tokenBalance = await this.randomToken.balanceOf(admin);
+      assert.deepEqual(tokenBalance.toString(), "19000000000000");
+    })
+    it("Saler can withdraw tokens if sale didn't reach softcap", async () => {
+      const blockNumber = await web3.eth.getBlockNumber()
+      const block = await web3.eth.getBlock(blockNumber)
+      this.currentTimestamp = block.timestamp
+      this.tommorow = this.currentTimestamp  + this.SECONDS_IN_DAY
+      this.dayAfterTommorow = this.currentTimestamp + 2 * this.SECONDS_IN_DAY
+      const price = new web3.utils.BN(parseFloat('1') * Math.pow(10, 13));
+      const saleCreatedReceipt = await this.saleFactory.createNewSale(
+        randomTokenName,
+        this.randomToken.address,
+        admin,
+        "10000000000000",
+        [0, 10, 100, 1000, 1500, 2000, 3000, 10000, 20000].map(value => this.addDecimals(value, randomTokenDecimals)),
+        this.tommorow,
+        this.dayAfterTommorow,
+        price.toString(),
+        'description',
+        { from: admin }
+      );
+      this.sale = await Sale.at(saleCreatedReceipt.logs[0].args.saleAddress);
+      let tokenBalance = await this.randomToken.balanceOf(admin);
+      assert.deepEqual(tokenBalance.toString(), "19000000000000");
+      await this.randomToken.approve(
+				this.sale.address,
+				"19000000000000",
+				{ from: admin }
+			)
+      await this.sale.addTokensForSale("19000000000000", {from: admin})
+      await this.sale.approve({from: admin})
+      const approved = await this.sale.approved()
+      assert.deepEqual(approved, true);
+      await this.advanceBlockAtTime(this.tommorow + 10);
+      const isSaleActive = await this.sale.isSaleActive();
+      assert.deepEqual(isSaleActive, true);
+      await this.sale.buyTokens({from:alice, value:web3.utils.toWei('0.1')})
+      const aliceTokenBalance = await this.sale.tokenBalances(alice);
+      assert.deepEqual(aliceTokenBalance.toString(), "1000000000000");
+      const aliceBalance = await this.sale.balances(alice);
+      assert.deepEqual(aliceBalance.toString(), web3.utils.toWei('0.1').toString());
+      await this.advanceBlockAtTime(this.dayAfterTommorow + 10);
+      const hasSaleEnded = await this.sale.hasSaleEnded();
+      assert.deepEqual(hasSaleEnded, true);
+      await this.sale.withdrawSaleResult({from: admin})
+      tokenBalance = await this.randomToken.balanceOf(admin);
+      assert.deepEqual(tokenBalance.toString(), "19000000000000");
+    })
+    it("Buyer can withdraw ethereum if sale didn't reach softcap", async () => {
+      const balanceBefore = await web3.eth.getBalance(alice);
+      const withdrawReceipt = await this.sale.withdrawFunds({from: alice})
+      const aliceTokenBalance = await this.sale.tokenBalances(alice);
+      assert.deepEqual(aliceTokenBalance.toString(), "0");
+      const aliceBalance = await this.sale.balances(alice);
+      assert.deepEqual(aliceBalance.toString(), "0");
+      const balanceAfter = await web3.eth.getBalance(alice);
+      const gasPrice = await web3.eth.getGasPrice()
+      let expectedBalance = new web3.utils.BN(balanceBefore)
+      expectedBalance = expectedBalance.add(new web3.utils.BN(web3.utils.toWei('0.1')));
+      expectedBalance = expectedBalance.sub(new web3.utils.BN(gasPrice * withdrawReceipt.receipt.gasUsed))
+      assert.deepEqual(expectedBalance.toString(), balanceAfter.toString())
+    })
+    it("Buyer can't withdraw bought tokens if sale didn't reach softcap", async () => {
+      await expectRevert(this.sale.withdrawBoughtTokens({from:alice}), "Sale didn't end or didn't reach softcap.")
+    })
+    it("Can't buy more tokens than hardcap", async ()=> {
+      const blockNumber = await web3.eth.getBlockNumber()
+      const block = await web3.eth.getBlock(blockNumber)
+      this.currentTimestamp = block.timestamp
+      this.tommorow = this.currentTimestamp  + this.SECONDS_IN_DAY
+      this.dayAfterTommorow = this.currentTimestamp + 2 * this.SECONDS_IN_DAY
+      const price = new web3.utils.BN(parseFloat('1') * Math.pow(10, 13));
+      const saleCreatedReceipt = await this.saleFactory.createNewSale(
+        randomTokenName,
+        this.randomToken.address,
+        admin,
+        "10000000000000",
+        [0, 10, 100, 1000, 1500, 2000, 3000, 200000, 200000].map(value => this.addDecimals(value, randomTokenDecimals)),
+        this.tommorow,
+        this.dayAfterTommorow,
+        price.toString(),
+        'description',
+        { from: admin }
+      );
+      this.sale = await Sale.at(saleCreatedReceipt.logs[0].args.saleAddress);
+      await this.randomToken.approve(
+				this.sale.address,
+				"19000000000000",
+				{ from: admin }
+			)
+      await this.sale.addTokensForSale("19000000000000", {from: admin})
+      await this.sale.approve({from: admin})
+      await this.advanceBlockAtTime(this.tommorow + 10);
+      const isSaleActive = await this.sale.isSaleActive();
+      assert.deepEqual(isSaleActive, true);
+      await expectRevert(this.sale.buyTokens({from:alice, value:web3.utils.toWei('2')}), "Contract doesn't have sufficient amount of tokens.")
     })
   })
 })
