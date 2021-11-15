@@ -98,8 +98,27 @@ contract("Test Logic", function (accounts) {
 			const aliceTier = await this.xStarterStaking.userTiers(alice)
 			assert.deepEqual(aliceTier.toString(), "7")
 		})
+		it("Check admin can update tiers and another user can't", async() => {
+			await expectRevert(this.xStarterStaking.updateTierValues([0, 1000, 5000, 10000, 25000, 50000, 75000, 120000, 500000], {from: alice}), "Only admin can use this function!")
+			await this.xStarterStaking.updateTierValues([0, 1000, 5000, 10000, 25000, 50000, 75000, 120000, 500000], {from: admin})
+			await expectRevert(this.xStarterStaking.updateSenderTier({from: admin}), "You didn't stake any coins. Your tier is 0.")
+			await this.xStarterStaking.updateSenderTier({from: alice})
+			let aliceTier = await this.xStarterStaking.userTiers(alice)
+			assert.deepEqual(aliceTier.toString(), "6")
+			await expectRevert(this.xStarterStaking.updateSpecificTierValue(100000, 7, {from: alice}), "Only admin can use this function!")
+			await expectRevert(this.xStarterStaking.updateSpecificTierValue(100000, 10, {from: admin}), "Wrong input values.")
+			await expectRevert(this.xStarterStaking.updateSpecificTierValue(100000, 9, {from: admin}), "Wrong input values.")
+			await this.xStarterStaking.updateSpecificTierValue(100000, 7, {from: admin})
+			await this.xStarterStaking.updateSpecificTierValue(135000, 8, {from: admin})
+			await this.xStarterStaking.updateSenderTier({from: alice})
+			aliceTier = await this.xStarterStaking.userTiers(alice)
+			assert.deepEqual(aliceTier.toString(), "7")
+		})
 		it("Check another user can't withdraw", async () => {
 			await expectRevert.unspecified(this.xStarterStaking.withdraw(0, { from: admin }))
+		})
+		it("Can't get interest amount with wrong stake id", async () => {
+			await expectRevert(this.xStarterStaking.calculateInterestAmount(123), 'XStarterStaking: Stake id is invalid')
 		})
 		it("Check interest amount values in different days", async () => {
 			let blockNumber = await web3.eth.getBlockNumber()
@@ -125,6 +144,9 @@ contract("Test Logic", function (accounts) {
 			interest = await this.xStarterStaking.calculateInterestAmount(0)
 			assert.deepEqual(interest.toString(), "328333")
 		})
+		it("Only stake's owner can withdraw", async () => {
+			await expectRevert(this.xStarterStaking.withdraw(0, { from: admin }), "XStarterStaking: Sender not staker")
+		})
 		it("Check withdraw", async () => {
 			await this.xStarterStaking.withdraw(0, { from: alice })
 			const afterStakingAliceBalance = await this.tokenInstance.balanceOf(alice)
@@ -140,6 +162,9 @@ contract("Test Logic", function (accounts) {
 		})
 		it("Check can't withdraw stake that already withdrawn", async () => {
 			await expectRevert.unspecified(this.xStarterStaking.withdraw(0, { from: alice }))
+		})
+		it("Can't calculate interest when stake is not active", async () => {
+			await expectRevert(this.xStarterStaking.calculateInterestAmount(0), 'XStarterStaking: Not active')
 		})
 		it("Check user tier with multiple stakes", async () => {
 			await this.tokenInstance.approve(

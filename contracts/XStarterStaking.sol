@@ -65,8 +65,12 @@ contract XStarterStaking {
         tierValues = _tierValues;
     }
     function updateSpecificTierValue(uint256 tierValue, uint256 tierIndex) public onlyAdmin{
-        require(tierValue >= 0 && tierIndex >= 0);
+        require(tierValue >= 0 && tierIndex >= 0 && tierIndex < tierValues.length, "Wrong input values.");
         tierValues[tierIndex] = tierValue;
+    }
+    function updateSenderTier() public {
+        require(userStakeAmount[msg.sender] > 0, "You didn't stake any coins. Your tier is 0.");
+        updateUserTier(msg.sender);
     }
     function stake(uint256 stakeAmount) public returns (uint256 stakeIdx) {
         stakeIdx = stakeList.length;
