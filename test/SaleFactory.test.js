@@ -227,6 +227,22 @@ contract("SaleFactory and Sale", function (accounts) {
       const hardcap = await this.sale.hardcap()
       assert.deepEqual(hardcap.toString(), "10000000000000")
     })
+    it("Can withdraw tokens if sale hasn't started yet", async () => {
+      await expectRevert(this.sale.withdrawTokensFromInvalidSale({from:alice}), "This function can be used only by sale owner!")
+      await this.sale.withdrawTokensFromInvalidSale({from:admin})
+      let hardcap = await this.sale.hardcap()
+      assert.deepEqual(hardcap.toString(), "0")
+      const adminBalance = await this.randomToken.balanceOf(admin)
+      assert.deepEqual(adminBalance.toString(), "10000000000000")
+      await this.randomToken.approve(
+				this.sale.address,
+				"10000000000000",
+				{ from: admin }
+			)
+      await this.sale.addTokensForSale("10000000000000")
+      hardcap = await this.sale.hardcap()
+      assert.deepEqual(hardcap.toString(), "10000000000000")
+    })
     it("Only 'TokenCreator' can add tokens to sale", async() => {
       await this.randomToken.mint(bob, "10000000000000", {from:admin});
       
@@ -297,6 +313,9 @@ contract("SaleFactory and Sale", function (accounts) {
     it("Saler can't withdraw sale result ", async () => {
       await expectRevert(this.sale.withdrawSaleResult({from:admin}), "Can withdraw only after approved sale ended.")
     })
+    it("Saler can't withdraw tokens from approved sale during sale with withdrawSaleResult function.", async () => {
+      await expectRevert(this.sale.withdrawTokensFromInvalidSale({from:admin}), "Sale is valid. Tokens can be withdrawn only after sale ends with withdrawSaleResult function.")
+    })
     it("Can't add tokens after sale has started", async () => {
       await this.randomToken.mint(admin, "10000000000000", {from:admin});
       
@@ -336,6 +355,9 @@ contract("SaleFactory and Sale", function (accounts) {
     })
     it("Can't withdraw second time", async () => {
       await expectRevert(this.sale.withdrawBoughtTokens({from: alice}), "Insufficient funds.");
+    })
+    it("Saler can't withdraw tokens from approved sale using withdrawTokensFromInvalidSale function", async () => {
+      await expectRevert(this.sale.withdrawTokensFromInvalidSale({from:admin}), "Sale is valid. Tokens can be withdrawn only after sale ends with withdrawSaleResult function.")
     })
     it("Saler can withdraw excess tokens and sale profit", async () => {
       const balanceBefore = await web3.eth.getBalance(admin);
@@ -419,7 +441,7 @@ contract("SaleFactory and Sale", function (accounts) {
       await expectRevert(this.sale.approve({from:admin}), "You can't approve this sale because it has already started.")
     })
     it("Saler can withdraw tokens if sale isn't approved", async () => {
-      await this.sale.withdrawSaleResult({from: admin})
+      await this.sale.withdrawTokensFromInvalidSale({from: admin})
       const tokenBalance = await this.randomToken.balanceOf(admin);
       assert.deepEqual(tokenBalance.toString(), "19000000000000");
     })
@@ -517,6 +539,100 @@ contract("SaleFactory and Sale", function (accounts) {
       const isSaleActive = await this.sale.isSaleActive();
       assert.deepEqual(isSaleActive, true);
       await expectRevert(this.sale.buyTokens({from:alice, value:web3.utils.toWei('2')}), "Contract doesn't have sufficient amount of tokens.")
+    })
+    it("Can't add tokens to declined sale", async ()=> {
+      const blockNumber = await web3.eth.getBlockNumber()
+      const block = await web3.eth.getBlock(blockNumber)
+      this.currentTimestamp = block.timestamp
+      this.tommorow = this.currentTimestamp  + this.SECONDS_IN_DAY
+      this.dayAfterTommorow = this.currentTimestamp + 2 * this.SECONDS_IN_DAY
+      const price = new web3.utils.BN(parseFloat('1') * Math.pow(10, 13));
+      const saleCreatedReceipt = await this.saleFactory.createNewSale(
+        randomTokenName,
+        this.randomToken.address,
+        admin,
+        "10000000000000",
+        [0, 10, 100, 1000, 1500, 2000, 3000, 200000, 200000].map(value => this.addDecimals(value, randomTokenDecimals)),
+        this.tommorow,
+        this.dayAfterTommorow,
+        price.toString(),
+        'description',
+        { from: admin }
+      );
+      this.sale = await Sale.at(saleCreatedReceipt.logs[0].args.saleAddress);
+      await this.randomToken.mint(admin, "10000000000000");
+      await this.randomToken.approve(
+				this.sale.address,
+				"10000000000000",
+				{ from: admin }
+			)
+      await this.sale.addTokensForSale("10000000000000", {from: admin})
+      //Only admin cal decline sale
+      await expectRevert(this.sale.decline({from:bob}), "This function can be used only by admin.")
+      await this.sale.decline({from:admin})
+      const isDeclined = await this.sale.declined()
+      assert.deepEqual(isDeclined, true);
+      await this.randomToken.mint(admin, "9000000000000");
+      await this.randomToken.approve(
+				this.sale.address,
+				"9000000000000",
+				{ from: admin }
+			)
+      await expectRevert(this.sale.addTokensForSale("9000000000000", {from: admin}), "You can't add tokens to declined sales.")
+
+     
+    })
+    it("Can't approve declined sale", async ()=> {
+      await expectRevert(this.sale.approve({from: admin}), "Sale is already declined.")
+    })
+    it("Can't change price in declined sale", async ()=> {
+      await expectRevert(this.sale.changePrice("1", {from: admin}), "Sale is declined.")
+    })
+    it("Can't participate in declined sale", async () => {
+      await this.advanceBlockAtTime(this.tommorow + 10);
+      const isSaleActive = await this.sale.isSaleActive();
+      assert.deepEqual(isSaleActive, true);
+      await expectRevert.unspecified(this.sale.buyTokens({from:alice, value:web3.utils.toWei('0.1')}))
+    })
+    it("Saler can withdraw tokens in declined sale", async () => {
+      await this.sale.withdrawTokensFromInvalidSale({from:admin})
+      const adminBalance = await this.randomToken.balanceOf(admin)
+      assert.deepEqual(adminBalance.toString(), "19000000000000");
+    })
+    it("Saler can withdraw his tokens if sale wasn't approved and started", async () => {
+      const blockNumber = await web3.eth.getBlockNumber()
+      const block = await web3.eth.getBlock(blockNumber)
+      this.currentTimestamp = block.timestamp
+      this.tommorow = this.currentTimestamp  + this.SECONDS_IN_DAY
+      this.dayAfterTommorow = this.currentTimestamp + 2 * this.SECONDS_IN_DAY
+      const price = new web3.utils.BN(parseFloat('1') * Math.pow(10, 13));
+      const saleCreatedReceipt = await this.saleFactory.createNewSale(
+        randomTokenName,
+        this.randomToken.address,
+        admin,
+        "10000000000000",
+        [0, 10, 100, 1000, 1500, 2000, 3000, 200000, 200000].map(value => this.addDecimals(value, randomTokenDecimals)),
+        this.tommorow,
+        this.dayAfterTommorow,
+        price.toString(),
+        'description',
+        { from: admin }
+      );
+      this.sale = await Sale.at(saleCreatedReceipt.logs[0].args.saleAddress);
+      await this.randomToken.approve(
+				this.sale.address,
+				"10000000000000",
+				{ from: admin }
+			)
+      await this.sale.addTokensForSale("10000000000000", {from: admin})
+      await this.advanceBlockAtTime(this.tommorow + 10);
+      const isSaleActive = await this.sale.isSaleActive();
+      assert.deepEqual(isSaleActive, true);
+      const isApproved = await this.sale.approved()
+      assert.deepEqual(isApproved, false);
+      await this.sale.withdrawTokensFromInvalidSale({from:admin})
+      const adminBalance = await this.randomToken.balanceOf(admin)
+      assert.deepEqual(adminBalance.toString(), "19000000000000");
     })
   })
 })

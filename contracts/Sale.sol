@@ -27,6 +27,7 @@ contract Sale{
     uint256 public totalTokensSold;
     uint256 public hardcap;
     bool public saleRewardWithdrawn;
+    bool public declined;
     event tokensSold(
         address buyer,
         uint256 amount,
@@ -84,11 +85,13 @@ contract Sale{
         price = _price;
         description = _description;
         approved = false;
+        declined = false;
         saleRewardWithdrawn = false;
         saleFactory = SaleFactory(msg.sender);
     }
     function changePrice(uint256 newPrice) public onlySaler{
         require(now < startTimestamp, "Sale has already started.");
+        require(!declined, "Sale is declined.");
         require(newPrice > 0);
         approved = false;
         price = newPrice;
@@ -127,6 +130,7 @@ contract Sale{
         require(isSaleActive(), "This sale has already ended or not started.");
         require(msg.value > 0, "Insufficient funds.");
         require(softcap <= hardcap, "Softcap is greater than hardcap. This sale is invalid.");
+        require(!declined, "This sale was declined by admin.");
         uint256 excessAmount = msg.value % price;
         uint256 purchaseAmount = SafeMath.sub(msg.value, excessAmount);
         uint256 tokenPurchase = SafeMath.div(purchaseAmount, price);
@@ -148,33 +152,45 @@ contract Sale{
     }
     function addTokensForSale(uint256 amount) public onlySaler{
         require(now < startTimestamp, "Can't add tokens after sale has started.");
+        require(!declined, "You can't add tokens to declined sales.");
         erc20Token.safeTransferFrom(msg.sender, address(this), amount);
         hardcap = SafeMath.add(hardcap, amount);
         emit hardcapIncreased(amount, hardcap);
     }
-    function withdrawSaleResult() public onlySaler{
-        require(now > endTimestamp || !approved, "Can withdraw only after approved sale ended.");
-        require(hardcap > 0 || totalTokensSold >= softcap, "There's nothing to withdraw.");
-        require(!saleRewardWithdrawn, "Sale reward has already been withdrawn.");
-        if(totalTokensSold >= softcap){
+    function withdrawTokensFromInvalidSale() public onlySaler {
+        require(now < startTimestamp || declined || (now > startTimestamp && !approved), "Sale is valid. Tokens can be withdrawn only after sale ends with withdrawSaleResult function.");
+        require(hardcap > 0, "There's nothing to withdraw.");
+        erc20Token.safeTransfer(msg.sender, hardcap);
+        hardcap = 0;
+    }
+     function withdrawSaleResult() public onlySaler{
+         require(now > endTimestamp, "Can withdraw only after approved sale ended.");
+         require(hardcap > 0, "There's nothing to withdraw.");
+         require(!declined && approved, "Sale wasn't approved or was declined.");
+         require(!saleRewardWithdrawn, "Sale reward has already been withdrawn.");
+         if(totalTokensSold >= softcap){
             uint256 tokenWithdrawAmount = SafeMath.sub(hardcap, totalTokensSold);
-            if(tokenWithdrawAmount > 0){
+             if(tokenWithdrawAmount > 0){
                 erc20Token.safeTransfer(msg.sender, tokenWithdrawAmount);
             }
-            msg.sender.transfer(address(this).balance);
-        }else if(!approved){
-            erc20Token.safeTransfer(msg.sender, hardcap);
-            hardcap = 0;
-        }else{
-            erc20Token.safeTransfer(msg.sender, hardcap);
-        }
-        if(approved && now > endTimestamp){
-            saleRewardWithdrawn = true;
-        }
-    }
+            if(address(this).balance > 0){
+                msg.sender.transfer(address(this).balance);
+            }
+         } else {
+              erc20Token.safeTransfer(msg.sender, hardcap);
+         }
+         saleRewardWithdrawn = true;
+     }
     function approve() public onlyAdmin{
         require(now < startTimestamp, "You can't approve this sale because it has already started.");
         require(!approved, "Sale is already approved.");
+        require(!declined, "Sale is already declined.");
         approved = true;
+    }
+    function decline() public onlyAdmin{
+        require(now < startTimestamp, "You can't decline this sale  because it has already started.");
+        require(!declined, "Sale is already declined.");
+        require(!approved, "Sale is already approved.");
+        declined = true;
     }
 }
