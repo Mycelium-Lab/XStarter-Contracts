@@ -13,6 +13,6 @@ module.exports = (deployer, network, accounts) => {
     )
 
     const tokenBoundToProxy = await XStarterToken.at(proxyInstance.address)
-    await tokenBoundToProxy.initialize(admin, "10000000000000", 10)
+    
   })
 }

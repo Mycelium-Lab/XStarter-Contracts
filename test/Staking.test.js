@@ -19,14 +19,15 @@ contract("Test Logic", function (accounts) {
 			"0x"
 		)
 		this.tokenInstance = await XStarterToken.at(this.proxyInstance.address)
-		await tokenInstance.initialize(admin)
-
+		
 		// logic
-		this.xStarterStaking = await XStarterStaking.new(this.proxyInstance.address, admin, [0, 1000, 5000, 10000, 25000, 50000, 75000, 100000, 500000])
-		const minter_role = await this.tokenInstance.MINTER_ROLE()
-		await this.tokenInstance.grantRole(minter_role, this.xStarterStaking.address, {
-			from: admin,
-		})
+		this.xStarterStaking = await XStarterStaking.new(this.proxyInstance.address, admin, [0, 1000, 5000, 10000, 25000, 50000, 75000, 100000, 500000], 10)
+		await this.tokenInstance.initialize(admin, "10000000000000", 10, this.xStarterStaking.address)
+
+		// const minter_role = await this.tokenInstance.MINTER_ROLE()
+		// await this.tokenInstance.grantRole(minter_role, this.xStarterStaking.address, {
+		// 	from: admin,
+		// })
 		// TODO: Time snapshot? 
 		// extras
 		this.advanceBlockAtTime = (time) => {
@@ -63,10 +64,22 @@ contract("Test Logic", function (accounts) {
 		}
 		this.SECONDS_IN_DAY = 86400
 	})
+	this.calculateInterestAmountPerPeriod = async (stakeId, rate) => {
+		let currentBlock = await web3.eth.getBlock('latest')
+		let stake = await this.xStarterStaking.stakeList(stakeId)
+		let currentTimestamp = new web3.utils.BN(currentBlock.timestamp + "")
+		let secondsPassed = currentTimestamp.sub(stake.stakeTimestamp)
 
+		const denumerator = new web3.utils.BN("3153600000")
+		//const secondsBN = new web3.utils.BN(seconds)
+		const rateBN = new web3.utils.BN(rate)
+		let numerator = secondsPassed.mul(rateBN);
+        numerator = numerator.mul(stake.stakeAmount);
+        //const denumerator = SafeMath.mul(SECONDS_IN_ONE_YEAR, 100);
+        return numerator.div(denumerator)
+	}
 	describe("Test Staking", () => {
 		it("Check initially minted", async () => {
-			// check 0 minted at the start
 			const mintedStart = await this.xStarterStaking.mintedXStarterTokens()
 			assert.deepEqual(mintedStart.toString(), "0")
 		})
@@ -81,12 +94,14 @@ contract("Test Logic", function (accounts) {
 			// prepare for staking
 			const supplyBefore = await this.tokenInstance.totalSupply()
 
-			// mint tokens to alice for staking
-			await this.setupTokensForStaking(alice, "100000")
+			// transfer tokens to alice for staking
+			await this.tokenInstance.approve(admin, "100000", {from: admin})
+			await this.tokenInstance.transfer(alice, "100000", {from: admin})
 
 			const initBalanceAlice = await this.tokenInstance.balanceOf(alice)
 			assert.deepEqual(initBalanceAlice.toString(), "100000")
 			// actual staking
+			await this.tokenInstance.approve(this.xStarterStaking.address, "100000", {from: alice})
 			await this.xStarterStaking.stake(
 				"100000",
 				{ from: alice }
@@ -125,24 +140,43 @@ contract("Test Logic", function (accounts) {
 			let block = await web3.eth.getBlock(blockNumber)
 			const thirtyDays = block.timestamp + this.SECONDS_IN_DAY * 30
 			await this.advanceBlockAtTime(thirtyDays)
+			// let currentBlock = await web3.eth.getBlock('latest')
+			// let stake = await this.xStarterStaking.stakeList(0)
+			
+			// let currentTimestamp = new web3.utils.BN(currentBlock.timestamp + "")
+			// let secondspassed = currentTimestamp.sub(stake.stakeTimestamp)
 			let interest = await this.xStarterStaking.calculateInterestAmount(0)
-			assert.deepEqual(interest.toString(), "10000")
+			let expectedInterest = await this.calculateInterestAmountPerPeriod(0, "10")
+			assert.deepEqual(expectedInterest.toString(), interest.toString())
 			const sixtyOneDay = block.timestamp + this.SECONDS_IN_DAY * 61
 			await this.advanceBlockAtTime(sixtyOneDay)
 			interest = await this.xStarterStaking.calculateInterestAmount(0)
-			assert.deepEqual(interest.toString(), "20500")
+			expectedInterest = await this.calculateInterestAmountPerPeriod(0, "10")
+			assert.deepEqual(expectedInterest.toString(), interest.toString())
 			const seventyFourDays = block.timestamp + this.SECONDS_IN_DAY * 74
 			await this.advanceBlockAtTime(seventyFourDays)
 			interest = await this.xStarterStaking.calculateInterestAmount(0)
-			assert.deepEqual(interest.toString(), "27000")
+			expectedInterest = await this.calculateInterestAmountPerPeriod(0, "10")
+			assert.deepEqual(expectedInterest.toString(), interest.toString())
 			const oneHundredEightyDays = block.timestamp + this.SECONDS_IN_DAY * 180
 			await this.advanceBlockAtTime(oneHundredEightyDays)
 			interest = await this.xStarterStaking.calculateInterestAmount(0)
-			assert.deepEqual(interest.toString(), "85000")
+			assert.deepEqual(interest.toString() === "4931" || interest.toString() ==="4930", true)
+			//4931
+			await this.xStarterStaking.changeAPR(20, {from:admin})
 			const fiveHundredFortyFive = block.timestamp + this.SECONDS_IN_DAY * 545
 			await this.advanceBlockAtTime(fiveHundredFortyFive)
 			interest = await this.xStarterStaking.calculateInterestAmount(0)
-			assert.deepEqual(interest.toString(), "328333")
+			expectedInterest = await this.calculateInterestAmountPerPeriod(0, "10")
+			assert.deepEqual(interest.toString() === "24930" || interest.toString() === "24931" , true)
+			//20000
+			await this.xStarterStaking.changeAPR(50, {from: admin})
+			const sixHundredFortyFive = block.timestamp + this.SECONDS_IN_DAY * 645
+			await this.advanceBlockAtTime(sixHundredFortyFive)
+			interest = await this.xStarterStaking.calculateInterestAmount(0)
+			expectedInterest = await this.calculateInterestAmountPerPeriod(0, "10")
+			assert.deepEqual(interest.toString() === "38628" || interest.toString() === "38629", true)
+			//13698
 		})
 		it("Only stake's owner can withdraw", async () => {
 			await expectRevert(this.xStarterStaking.withdraw(0, { from: admin }), "XStarterStaking: Sender not staker")
@@ -150,9 +184,9 @@ contract("Test Logic", function (accounts) {
 		it("Check withdraw", async () => {
 			await this.xStarterStaking.withdraw(0, { from: alice })
 			const afterStakingAliceBalance = await this.tokenInstance.balanceOf(alice)
-			assert.deepEqual(afterStakingAliceBalance.toString(), "428333")
+			assert.deepEqual(afterStakingAliceBalance.toString() === "138629" || afterStakingAliceBalance.toString() === "138628", true)
 			const mintedXStarterTokens = await this.xStarterStaking.mintedXStarterTokens()
-			assert.deepEqual(mintedXStarterTokens.toString(),"328333")
+			assert.deepEqual(mintedXStarterTokens.toString()==="38629" || mintedXStarterTokens.toString()==="38628", true)
 			const userStakeAmount = await this.xStarterStaking.userStakeAmount(alice);
 			assert.deepEqual(userStakeAmount.toString(),"0")
 		})

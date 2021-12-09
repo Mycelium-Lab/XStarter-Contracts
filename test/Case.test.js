@@ -3,6 +3,7 @@ const { ether } = require("@openzeppelin/test-helpers")
 
 const TokenProxy = artifacts.require("TokenProxy")
 const XStarterToken = artifacts.require("XStarterToken")
+const XStarterStaking = artifacts.require("XStarterStaking")
 const CaseToken_V2 = artifacts.require("CaseToken_V2")
 const { expectRevert, expectEvent } = require('@openzeppelin/test-helpers');
 const { web3 } = require("@openzeppelin/test-helpers/src/setup")
@@ -56,7 +57,10 @@ contract("Test XStarter Token", function (accounts) {
     })
 
     it("Init contact values", async () => {
-      await this.tokenInstance.initialize(admin, "10000000000000", 10)
+      const decimals = "0".repeat(8);
+      const DEFAULT_TIER_VALUES = [0, 10, 50, 100, 250, 500, 750, 1000].map( value => value + decimals);
+      const xStarterStaking = await XStarterStaking.new(proxyInstance.address, admin, DEFAULT_TIER_VALUES, 20)
+      await this.tokenInstance.initialize(admin, "10000000000000", 10, xStarterStaking.address)
     })
 
     it("Checks the values after init", async () => {

@@ -21,9 +21,10 @@ contract XStarterToken is ERC20, Initializable {
     bool public isDAOAssigned = false;
     mapping (uint256 => MintPermitPeriod) public mintPeriods;
     uint256 mintPeriodsLength = 0;
-    function initialize(address admin, uint256 _initialTotalSupply, uint256 _ownerMintPermitRate) public initializer {
+    function initialize(address admin, uint256 _initialTotalSupply, uint256 _ownerMintPermitRate, address _stakingAddress) public initializer {
         _initialize("XStarter", "XST", 8);
         ownerAddress = admin;
+        stakingAddress = _stakingAddress;
         _mint(admin, _initialTotalSupply);
         initialTotalSupply = _initialTotalSupply;
         mintPeriods[mintPeriodsLength] = MintPermitPeriod(now, now + SECONDS_IN_THREE_YEARS, _ownerMintPermitRate, 0, initialTotalSupply);

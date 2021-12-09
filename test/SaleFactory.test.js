@@ -24,15 +24,11 @@ contract("SaleFactory and Sale", function (accounts) {
       "0x"
     )
     this.tokenInstance = await XStarterToken.at(this.proxyInstance.address)
-    await tokenInstance.initialize(admin)
+    //await tokenInstance.initialize(admin)
 
     // logic
-    this.xStarterStaking = await XStarterStaking.new(this.proxyInstance.address, admin, [0, 100, 500, 1000, 2500, 5000, 7500, 10000, 20000].map(value => value + "0".repeat(8)));
-    const minter_role = await this.tokenInstance.MINTER_ROLE()
-    await this.tokenInstance.grantRole(minter_role, this.xStarterStaking.address, {
-      from: admin,
-    })
-
+    this.xStarterStaking = await XStarterStaking.new(this.proxyInstance.address, admin, [0, 100, 500, 1000, 2500, 5000, 7500, 10000, 20000].map(value => value + "0".repeat(8)), 10);
+    await this.tokenInstance.initialize(admin, "10000000000000", 10, this.xStarterStaking.address)
     // Sale Factory
     this.saleFactory = await SaleFactory.new(admin, this.xStarterStaking.address);
 
