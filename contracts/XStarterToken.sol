@@ -32,7 +32,6 @@ contract XStarterToken is ERC20, Initializable {
     }
 
     function mint(address recipient, uint256 amount) public returns (bool) {
-        //require(hasRole(MINTER_STAKING_ROLE , _msgSender()) || hasRole(OWNER_ROLE, _msgSender()) , "mint: unauthorized call!");
         require(msg.sender == ownerAddress || msg.sender ==  stakingAddress, "mint: unauthorized call!");
         if(msg.sender == stakingAddress){
             _mint(recipient, amount);

@@ -16,6 +16,7 @@ contract XStarterStaking {
     event ReceiveStakeReward(uint256 idx, address user, uint256 rewardAmount);
     event WithdrawReward(uint256 idx, address user, uint256 rewardAmount);
     event WithdrawStake(uint256 idx, address user,  uint256 rewardAmount);
+    event APRChanged(uint256 newAPR, uint256 timestamp);
     struct Stake {
         address staker;
         uint256 stakeAmount;
@@ -26,14 +27,15 @@ contract XStarterStaking {
     struct APRPeriod {
         uint256 startTimestamp;
         uint256 endTimestamp;
-        uint256 APRRate;
+        uint256 aprRate;
     }
     mapping(address => uint256) public userTiers;
     uint256[] public tierValues;
     Stake[] public stakeList;
     mapping(address => uint256) public userStakeAmount;
     uint256 public mintedXStarterTokens;
-    
+    uint256 public totalStakedTokens = 0;
+
     uint256 internal constant DAYS_IN_MONTHS = 30;
     uint256 internal constant DAY_IN_SECONDS = 86400;
     uint256 internal constant INITIAL_INTEREST_RATE = 10;
@@ -44,7 +46,7 @@ contract XStarterStaking {
     uint256 internal constant DAYS_IN_FIVE_MONTHS = 150;
     uint256 internal constant SECONDS_IN_ONE_YEAR = 31536000;
 
-    mapping (uint256 => APRPeriod) aprPeriods;
+    mapping (uint256 => APRPeriod) public aprPeriods;
     uint256 public aprPeriodsLength = 0;
 
     XStarterToken public xstarterToken;
@@ -90,6 +92,7 @@ contract XStarterStaking {
         }
         aprPeriods[aprPeriodsLength] = APRPeriod(now, 0, newAPR);
         aprPeriodsLength = aprPeriodsLength.add(1);
+        emit APRChanged(newAPR, now);
     }
     function calculateInterestAmount(uint256 stakeIdx) public view returns(uint256){
         require(stakeIdx < stakeList.length, "XStarterStaking: Stake id is invalid");
@@ -111,9 +114,9 @@ contract XStarterStaking {
                 toTimestamp = aprPeriods[i].endTimestamp;
             }
             uint256 secondsInAPRPeriod = SafeMath.sub(toTimestamp, fromTimestamp);
-            uint256 interestInAPRPeriod = calculateInterest(secondsInAPRPeriod, stakeList[stakeIdx].stakeAmount, aprPeriods[i].APRRate);
+            uint256 interestInAPRPeriod = calculateInterest(secondsInAPRPeriod, stakeList[stakeIdx].stakeAmount, aprPeriods[i].aprRate);
             totalInterest = totalInterest.add(interestInAPRPeriod);
-            if(stakeList[stakeIdx].stakeTimestamp >= aprPeriods[i].startTimestamp && stakeList[stakeIdx].stakeTimestamp < aprPeriods[i].endTimestamp){
+            if(stakeList[stakeIdx].stakeTimestamp >= aprPeriods[i].startTimestamp && (stakeList[stakeIdx].stakeTimestamp < aprPeriods[i].endTimestamp || aprPeriods[i].endTimestamp == 0)){
                 loopActive = false;
             }
             if(i!=0){
@@ -136,6 +139,7 @@ contract XStarterStaking {
             })
         );
         userStakeAmount[msg.sender] = SafeMath.add(userStakeAmount[msg.sender], stakeAmount);
+        totalStakedTokens = SafeMath.add(totalStakedTokens, stakeAmount);
         xstarterToken.safeTransferFrom(msg.sender, address(this), stakeAmount);
         updateUserTier(msg.sender);
         emit CreateStake(
@@ -145,36 +149,6 @@ contract XStarterStaking {
         );
         return stakeIdx;
     }
-    // function calculateInterestAmount(uint256 stakeIdx) public view returns(uint256){
-    //     require(stakeIdx < stakeList.length, "XStarterStaking: Stake id is invalid");
-    //     require(stakeList[stakeIdx].active, "XStarterStaking: Not active");
-    //     uint256 timePassed = SafeMath.sub(now, stakeList[stakeIdx].stakeTimestamp);
-    //     uint256 timePassedInDays = SafeMath.div(timePassed, DAY_IN_SECONDS);
-    //     uint256 timePassedInMonths = SafeMath.div(timePassedInDays, DAYS_IN_MONTHS);
-    //     uint256 totalInterestAmount = 0;
-    //     if(timePassedInMonths >= 5){
-    //         uint256 daysPassedAfterSixMonths = SafeMath.sub(timePassedInDays, DAYS_IN_FIVE_MONTHS);
-    //         uint256 interestAmountAfterSixMonths = calculateInterest(daysPassedAfterSixMonths, stakeList[stakeIdx].stakeAmount, SIX_MONTHS_INTEREST_RATE);
-    //         uint256 interestAmountAfterThreeMonths = calculateInterest(THREE_MONTHS_DAYS, stakeList[stakeIdx].stakeAmount, THREE_MONTHS_INTEREST_RATE);
-    //         uint256 interestAmountAfterFirstMonths = calculateInterest(INITIAL_MONTHS_DAYS, stakeList[stakeIdx].stakeAmount, INITIAL_INTEREST_RATE);
-    //         totalInterestAmount = SafeMath.add(interestAmountAfterSixMonths, interestAmountAfterThreeMonths);
-    //         totalInterestAmount = SafeMath.add(totalInterestAmount, interestAmountAfterFirstMonths);
-    //     }else if(timePassedInMonths >= 2){
-    //         uint256 daysPassedAfterThreeMonths = SafeMath.sub(timePassedInDays, INITIAL_MONTHS_DAYS);
-    //         uint256 interestAmountAfterThreeMonths = calculateInterest(daysPassedAfterThreeMonths, stakeList[stakeIdx].stakeAmount, THREE_MONTHS_INTEREST_RATE);
-    //         uint256 interestAmountAfterFirstMonths = calculateInterest(INITIAL_MONTHS_DAYS, stakeList[stakeIdx].stakeAmount, INITIAL_INTEREST_RATE);
-    //         totalInterestAmount = SafeMath.add(interestAmountAfterThreeMonths, interestAmountAfterFirstMonths);
-    //     }else {
-    //         totalInterestAmount = calculateInterest(timePassedInDays, stakeList[stakeIdx].stakeAmount, INITIAL_INTEREST_RATE);
-    //     }
-    //     return totalInterestAmount;
-    // }
-    // function calculateInterest(uint256 amountOfDays, uint256 stakeAmount, uint256 rate) private pure returns(uint256) {
-    //     uint256 numerator = SafeMath.mul(amountOfDays, stakeAmount);
-    //     numerator = SafeMath.mul(numerator, rate);
-    //     uint256 denumerator = SafeMath.mul(100, DAYS_IN_MONTHS);
-    //     return SafeMath.div(numerator, denumerator);
-    // }
      function calculateInterest(uint256 amountOfSeconds, uint256 stakeAmount, uint256 rate) private pure returns(uint256) {
         uint256 numerator = SafeMath.mul(amountOfSeconds, rate);
         numerator = SafeMath.mul(numerator, stakeAmount);
@@ -196,6 +170,7 @@ contract XStarterStaking {
         stakeObj.active = false;
         stakeObj.withdrawnInterestAmount = interestAmount;
         userStakeAmount[stakeObj.staker] = SafeMath.sub(userStakeAmount[stakeObj.staker], stakeObj.stakeAmount);
+        totalStakedTokens = SafeMath.sub(totalStakedTokens, stakeObj.stakeAmount);
         updateUserTier(stakeObj.staker);
         emit WithdrawReward(stakeIdx, stakeObj.staker, interestAmount);
     }

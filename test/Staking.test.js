@@ -166,18 +166,30 @@ contract("Test Logic", function (accounts) {
 			await this.xStarterStaking.changeAPR(20, {from:admin})
 			const fiveHundredFortyFive = block.timestamp + this.SECONDS_IN_DAY * 545
 			await this.advanceBlockAtTime(fiveHundredFortyFive)
+
 			interest = await this.xStarterStaking.calculateInterestAmount(0)
 			expectedInterest = await this.calculateInterestAmountPerPeriod(0, "10")
 			assert.deepEqual(interest.toString() === "24930" || interest.toString() === "24931" , true)
 			//20000
 			await this.xStarterStaking.changeAPR(50, {from: admin})
+
+			await this.tokenInstance.approve(admin, "100000", {from: admin})
+			await this.tokenInstance.transfer(alice, "100000", {from: admin})
+			await this.tokenInstance.approve(this.xStarterStaking.address, "100000", {from: alice})
+			await this.xStarterStaking.stake(
+				"100000",
+				{ from: alice }
+			)
 			const sixHundredFortyFive = block.timestamp + this.SECONDS_IN_DAY * 645
 			await this.advanceBlockAtTime(sixHundredFortyFive)
 			interest = await this.xStarterStaking.calculateInterestAmount(0)
+			let interestSecondStake = await this.xStarterStaking.calculateInterestAmount(1)
+			assert.deepEqual(interestSecondStake.toString(), "13698")
 			expectedInterest = await this.calculateInterestAmountPerPeriod(0, "10")
 			assert.deepEqual(interest.toString() === "38628" || interest.toString() === "38629", true)
 			//13698
 		})
+
 		it("Only stake's owner can withdraw", async () => {
 			await expectRevert(this.xStarterStaking.withdraw(0, { from: admin }), "XStarterStaking: Sender not staker")
 		})
@@ -187,6 +199,7 @@ contract("Test Logic", function (accounts) {
 			assert.deepEqual(afterStakingAliceBalance.toString() === "138629" || afterStakingAliceBalance.toString() === "138628", true)
 			const mintedXStarterTokens = await this.xStarterStaking.mintedXStarterTokens()
 			assert.deepEqual(mintedXStarterTokens.toString()==="38629" || mintedXStarterTokens.toString()==="38628", true)
+			await this.xStarterStaking.withdraw(1, { from: alice })
 			const userStakeAmount = await this.xStarterStaking.userStakeAmount(alice);
 			assert.deepEqual(userStakeAmount.toString(),"0")
 		})
