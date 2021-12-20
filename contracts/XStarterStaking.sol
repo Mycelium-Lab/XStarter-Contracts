@@ -4,8 +4,8 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "./XStarterToken.sol";
-
-contract XStarterStaking {
+import "./HasAdmin.sol";
+contract XStarterStaking is HasAdmin{
     using SafeMath for uint256;
     using SafeERC20 for XStarterToken;
     event CreateStake(
@@ -50,15 +50,9 @@ contract XStarterStaking {
     uint256 public aprPeriodsLength = 0;
 
     XStarterToken public xstarterToken;
-    address admin;
-    modifier onlyAdmin {
-        require(msg.sender == admin, "Only admin can use this function!");
-        _;
-    }
-     constructor(address _xstarterToken, address _admin, uint256[] memory _tierValues, uint256 initialAPR) public {
+     constructor(address _xstarterToken, address _admin, uint256[] memory _tierValues, uint256 initialAPR) public HasAdmin(_admin) {
         tierValues = _tierValues;
         xstarterToken = XStarterToken(_xstarterToken);
-        admin = _admin;
         aprPeriods[aprPeriodsLength] = APRPeriod(now, 0, initialAPR);
         aprPeriodsLength = aprPeriodsLength.add(1);
     }
