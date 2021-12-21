@@ -3,8 +3,8 @@ pragma solidity 0.6.2;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "./XStarterToken.sol";
-import "./HasAdmin.sol";
+import "../token/XStarterToken.sol";
+import "../access/HasAdmin.sol";
 contract XStarterStaking is HasAdmin{
     using SafeMath for uint256;
     using SafeERC20 for XStarterToken;

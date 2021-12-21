@@ -7,14 +7,14 @@ const XStarterToken = artifacts.require("XStarterToken")
 const XStarterStaking = artifacts.require("XStarterStaking")
 const SaleFactory = artifacts.require("SaleFactory")
 const Sale = artifacts.require("Sale")
-const CaseToken_V2 = artifacts.require("CaseToken_V2")
+const TestToken = artifacts.require("TestToken")
 const { web3 } = require("@openzeppelin/test-helpers/src/setup")
 const { expectRevert, expectEvent } = require('@openzeppelin/test-helpers');
 
-contract("SaleFactory and Sale", function (accounts) {
+contract("SaleFactory && Sale", function (accounts) {
   const [admin, proxyAdmin, alice, john, jack, bob, sam, kyle, dale, homer, harry, james, george, edward, ryan, eric, tom, ben, jen, ken, ...rest] = accounts
-  const randomTokenName = "Token"
-  const randomTokenDecimals = 8
+  const testTokenName = "Token"
+  const testTokenDecimals = 8
   before(async () => {
     // token
     this.logicInstance = await XStarterToken.new({ from: admin })
@@ -33,9 +33,8 @@ contract("SaleFactory and Sale", function (accounts) {
     this.saleFactory = await SaleFactory.new(admin, this.xStarterStaking.address);
 
     // Any ERC20 Token
-    this.randomToken = await CaseToken_V2.new({ from: admin })
-    await this.randomToken.changeTokenData(randomTokenName, "TKN", randomTokenDecimals)
-    await this.randomToken.initialize(admin);
+    this.testToken = await TestToken.new({ from: admin })
+    await this.testToken.initialize(admin);
     
     // extras
     this.timeTravel = function (time) {
@@ -150,11 +149,11 @@ contract("SaleFactory and Sale", function (accounts) {
       this.dayAfterTommorow = this.currentTimestamp + 2 * this.SECONDS_IN_DAY
       // Can't create sale without permission
       await expectRevert(this.saleFactory.createNewSale(
-        randomTokenName,
-        this.randomToken.address,
+        testTokenName,
+        this.testToken.address,
         admin,
-        this.addDecimals(1000, randomTokenDecimals),
-        [0, 10, 100, 1000, 1500, 2000, 3000, 10000, 20000].map(value => this.addDecimals(value, randomTokenDecimals)),
+        this.addDecimals(1000, testTokenDecimals),
+        [0, 10, 100, 1000, 1500, 2000, 3000, 10000, 20000].map(value => this.addDecimals(value, testTokenDecimals)),
         this.tommorow,
         this.dayAfterTommorow,
         web3.utils.toWei("2"),
@@ -163,11 +162,11 @@ contract("SaleFactory and Sale", function (accounts) {
       ), "You don't have permission to create sales.")
       await this.saleFactory.setSaleCreator(admin, true, {from: admin})
       const saleCreatedReceipt = await this.saleFactory.createNewSale(
-        randomTokenName,
-        this.randomToken.address,
+        testTokenName,
+        this.testToken.address,
         admin,
-        this.addDecimals(1000, randomTokenDecimals),
-        [0, 10, 100, 1000, 1500, 2000, 3000, 10000, 20000].map(value => this.addDecimals(value, randomTokenDecimals)),
+        this.addDecimals(1000, testTokenDecimals),
+        [0, 10, 100, 1000, 1500, 2000, 3000, 10000, 20000].map(value => this.addDecimals(value, testTokenDecimals)),
         this.tommorow,
         this.dayAfterTommorow,
         web3.utils.toWei("2"),
@@ -199,9 +198,9 @@ contract("SaleFactory and Sale", function (accounts) {
       assert.deepEqual(saleRewardWithdrawn, false)
       assert.deepEqual(isSaleActive, false)
       assert.deepEqual(hasSaleEnded, false)
-      assert.deepEqual(tokenName, randomTokenName)
-      assert.deepEqual(tokenAddress, this.randomToken.address)
-      assert.deepEqual(softcap.toString(), this.addDecimals(1000, randomTokenDecimals))
+      assert.deepEqual(tokenName, testTokenName)
+      assert.deepEqual(tokenAddress, this.testToken.address)
+      assert.deepEqual(softcap.toString(), this.addDecimals(1000, testTokenDecimals))
       assert.deepEqual(startTimestamp.toString(), this.tommorow.toString())
       assert.deepEqual(endTimestamp.toString(), this.dayAfterTommorow.toString())
       assert.deepEqual(price.toString(), web3.utils.toWei('2'))
@@ -211,9 +210,9 @@ contract("SaleFactory and Sale", function (accounts) {
     })
     it("Can add tokens for sale", async () => {
       //Mint and approve 100,000 TKN
-      await this.randomToken.mint(admin, "10000000000000");
+      await this.testToken.mint(admin, "10000000000000");
       
-      await this.randomToken.approve(
+      await this.testToken.approve(
 				this.sale.address,
 				"10000000000000",
 				{ from: admin }
@@ -228,9 +227,9 @@ contract("SaleFactory and Sale", function (accounts) {
       await this.sale.withdrawTokensFromInvalidSale({from:admin})
       let hardcap = await this.sale.hardcap()
       assert.deepEqual(hardcap.toString(), "0")
-      const adminBalance = await this.randomToken.balanceOf(admin)
+      const adminBalance = await this.testToken.balanceOf(admin)
       assert.deepEqual(adminBalance.toString(), "10000000000000")
-      await this.randomToken.approve(
+      await this.testToken.approve(
 				this.sale.address,
 				"10000000000000",
 				{ from: admin }
@@ -240,9 +239,9 @@ contract("SaleFactory and Sale", function (accounts) {
       assert.deepEqual(hardcap.toString(), "10000000000000")
     })
     it("Only 'TokenCreator' can add tokens to sale", async() => {
-      await this.randomToken.mint(bob, "10000000000000", {from:admin});
+      await this.testToken.mint(bob, "10000000000000", {from:admin});
       
-      await this.randomToken.approve(
+      await this.testToken.approve(
 				this.sale.address,
 				"10000000000000",
 				{ from: bob }
@@ -313,9 +312,9 @@ contract("SaleFactory and Sale", function (accounts) {
       await expectRevert(this.sale.withdrawTokensFromInvalidSale({from:admin}), "Sale is valid. Tokens can be withdrawn only after sale ends with withdrawSaleResult function.")
     })
     it("Can't add tokens after sale has started", async () => {
-      await this.randomToken.mint(admin, "10000000000000", {from:admin});
+      await this.testToken.mint(admin, "10000000000000", {from:admin});
       
-      await this.randomToken.approve(
+      await this.testToken.approve(
 				this.sale.address,
 				"10000000000000",
 				{ from: admin }
@@ -331,7 +330,7 @@ contract("SaleFactory and Sale", function (accounts) {
       const totalTokensSold = await this.sale.totalTokensSold();
       const softcap = await this.sale.softcap();
       await this.sale.withdrawBoughtTokens({from: alice});
-      const randomTokenAliceBalance = await this.randomToken.balanceOf(alice);
+      const randomTokenAliceBalance = await this.testToken.balanceOf(alice);
       assert.deepEqual(randomTokenAliceBalance.toString(), "1000000000000");
       const aliceTokenBalance = await this.sale.tokenBalances(alice);
       assert.deepEqual(aliceTokenBalance.toString(), "0");
@@ -358,7 +357,7 @@ contract("SaleFactory and Sale", function (accounts) {
     it("Saler can withdraw excess tokens and sale profit", async () => {
       const balanceBefore = await web3.eth.getBalance(admin);
       const withdrawReceipt = await this.sale.withdrawSaleResult({from:admin});
-      const tokenBalance = await this.randomToken.balanceOf(admin);
+      const tokenBalance = await this.testToken.balanceOf(admin);
       assert.deepEqual(tokenBalance.toString(), "19000000000000");
       const balanceAfter = await web3.eth.getBalance(admin);
       const gasPrice = await web3.eth.getGasPrice()
@@ -382,11 +381,11 @@ contract("SaleFactory and Sale", function (accounts) {
       this.dayAfterTommorow = this.currentTimestamp + 2 * this.SECONDS_IN_DAY
       const price = new web3.utils.BN(parseFloat('1') * Math.pow(10, 13));
       const saleCreatedReceipt = await this.saleFactory.createNewSale(
-        randomTokenName,
-        this.randomToken.address,
+        testTokenName,
+        this.testToken.address,
         admin,
-        this.addDecimals(1000, randomTokenDecimals),
-        [0, 10, 100, 1000, 1500, 2000, 3000, 10000, 20000].map(value => this.addDecimals(value, randomTokenDecimals)),
+        this.addDecimals(1000, testTokenDecimals),
+        [0, 10, 100, 1000, 1500, 2000, 3000, 10000, 20000].map(value => this.addDecimals(value, testTokenDecimals)),
         this.tommorow,
         this.dayAfterTommorow,
         price.toString(),
@@ -408,11 +407,11 @@ contract("SaleFactory and Sale", function (accounts) {
       this.dayAfterTommorow = this.currentTimestamp + 2 * this.SECONDS_IN_DAY
       const price = new web3.utils.BN(parseFloat('1') * Math.pow(10, 13));
       const saleCreatedReceipt = await this.saleFactory.createNewSale(
-        randomTokenName,
-        this.randomToken.address,
+        testTokenName,
+        this.testToken.address,
         admin,
         "10000000000000",
-        [0, 10, 100, 1000, 1500, 2000, 3000, 10000, 20000].map(value => this.addDecimals(value, randomTokenDecimals)),
+        [0, 10, 100, 1000, 1500, 2000, 3000, 10000, 20000].map(value => this.addDecimals(value, testTokenDecimals)),
         this.tommorow,
         this.dayAfterTommorow,
         price.toString(),
@@ -420,9 +419,9 @@ contract("SaleFactory and Sale", function (accounts) {
         { from: admin }
       );
       this.sale = await Sale.at(saleCreatedReceipt.logs[0].args.saleAddress);
-      let tokenBalance = await this.randomToken.balanceOf(admin);
+      let tokenBalance = await this.testToken.balanceOf(admin);
       assert.deepEqual(tokenBalance.toString(), "19000000000000");
-      await this.randomToken.approve(
+      await this.testToken.approve(
 				this.sale.address,
 				"19000000000000",
 				{ from: admin }
@@ -438,7 +437,7 @@ contract("SaleFactory and Sale", function (accounts) {
     })
     it("Saler can withdraw tokens if sale isn't approved", async () => {
       await this.sale.withdrawTokensFromInvalidSale({from: admin})
-      const tokenBalance = await this.randomToken.balanceOf(admin);
+      const tokenBalance = await this.testToken.balanceOf(admin);
       assert.deepEqual(tokenBalance.toString(), "19000000000000");
     })
     it("Saler can withdraw tokens if sale didn't reach softcap", async () => {
@@ -449,11 +448,11 @@ contract("SaleFactory and Sale", function (accounts) {
       this.dayAfterTommorow = this.currentTimestamp + 2 * this.SECONDS_IN_DAY
       const price = new web3.utils.BN(parseFloat('1') * Math.pow(10, 13));
       const saleCreatedReceipt = await this.saleFactory.createNewSale(
-        randomTokenName,
-        this.randomToken.address,
+        testTokenName,
+        this.testToken.address,
         admin,
         "10000000000000",
-        [0, 10, 100, 1000, 1500, 2000, 3000, 10000, 20000].map(value => this.addDecimals(value, randomTokenDecimals)),
+        [0, 10, 100, 1000, 1500, 2000, 3000, 10000, 20000].map(value => this.addDecimals(value, testTokenDecimals)),
         this.tommorow,
         this.dayAfterTommorow,
         price.toString(),
@@ -461,9 +460,9 @@ contract("SaleFactory and Sale", function (accounts) {
         { from: admin }
       );
       this.sale = await Sale.at(saleCreatedReceipt.logs[0].args.saleAddress);
-      let tokenBalance = await this.randomToken.balanceOf(admin);
+      let tokenBalance = await this.testToken.balanceOf(admin);
       assert.deepEqual(tokenBalance.toString(), "19000000000000");
-      await this.randomToken.approve(
+      await this.testToken.approve(
 				this.sale.address,
 				"19000000000000",
 				{ from: admin }
@@ -484,7 +483,7 @@ contract("SaleFactory and Sale", function (accounts) {
       const hasSaleEnded = await this.sale.hasSaleEnded();
       assert.deepEqual(hasSaleEnded, true);
       await this.sale.withdrawSaleResult({from: admin})
-      tokenBalance = await this.randomToken.balanceOf(admin);
+      tokenBalance = await this.testToken.balanceOf(admin);
       assert.deepEqual(tokenBalance.toString(), "19000000000000");
     })
     it("Buyer can withdraw ethereum if sale didn't reach softcap", async () => {
@@ -512,11 +511,11 @@ contract("SaleFactory and Sale", function (accounts) {
       this.dayAfterTommorow = this.currentTimestamp + 2 * this.SECONDS_IN_DAY
       const price = new web3.utils.BN(parseFloat('1') * Math.pow(10, 13));
       const saleCreatedReceipt = await this.saleFactory.createNewSale(
-        randomTokenName,
-        this.randomToken.address,
+        testTokenName,
+        this.testToken.address,
         admin,
         "10000000000000",
-        [0, 10, 100, 1000, 1500, 2000, 3000, 200000, 200000].map(value => this.addDecimals(value, randomTokenDecimals)),
+        [0, 10, 100, 1000, 1500, 2000, 3000, 200000, 200000].map(value => this.addDecimals(value, testTokenDecimals)),
         this.tommorow,
         this.dayAfterTommorow,
         price.toString(),
@@ -524,7 +523,7 @@ contract("SaleFactory and Sale", function (accounts) {
         { from: admin }
       );
       this.sale = await Sale.at(saleCreatedReceipt.logs[0].args.saleAddress);
-      await this.randomToken.approve(
+      await this.testToken.approve(
 				this.sale.address,
 				"19000000000000",
 				{ from: admin }
@@ -544,11 +543,11 @@ contract("SaleFactory and Sale", function (accounts) {
       this.dayAfterTommorow = this.currentTimestamp + 2 * this.SECONDS_IN_DAY
       const price = new web3.utils.BN(parseFloat('1') * Math.pow(10, 13));
       const saleCreatedReceipt = await this.saleFactory.createNewSale(
-        randomTokenName,
-        this.randomToken.address,
+        testTokenName,
+        this.testToken.address,
         admin,
         "10000000000000",
-        [0, 10, 100, 1000, 1500, 2000, 3000, 200000, 200000].map(value => this.addDecimals(value, randomTokenDecimals)),
+        [0, 10, 100, 1000, 1500, 2000, 3000, 200000, 200000].map(value => this.addDecimals(value, testTokenDecimals)),
         this.tommorow,
         this.dayAfterTommorow,
         price.toString(),
@@ -556,8 +555,8 @@ contract("SaleFactory and Sale", function (accounts) {
         { from: admin }
       );
       this.sale = await Sale.at(saleCreatedReceipt.logs[0].args.saleAddress);
-      await this.randomToken.mint(admin, "10000000000000");
-      await this.randomToken.approve(
+      await this.testToken.mint(admin, "10000000000000");
+      await this.testToken.approve(
 				this.sale.address,
 				"10000000000000",
 				{ from: admin }
@@ -568,8 +567,8 @@ contract("SaleFactory and Sale", function (accounts) {
       await this.sale.decline({from:admin})
       const isDeclined = await this.sale.declined()
       assert.deepEqual(isDeclined, true);
-      await this.randomToken.mint(admin, "9000000000000");
-      await this.randomToken.approve(
+      await this.testToken.mint(admin, "9000000000000");
+      await this.testToken.approve(
 				this.sale.address,
 				"9000000000000",
 				{ from: admin }
@@ -592,7 +591,7 @@ contract("SaleFactory and Sale", function (accounts) {
     })
     it("Saler can withdraw tokens in declined sale", async () => {
       await this.sale.withdrawTokensFromInvalidSale({from:admin})
-      const adminBalance = await this.randomToken.balanceOf(admin)
+      const adminBalance = await this.testToken.balanceOf(admin)
       assert.deepEqual(adminBalance.toString(), "19000000000000");
     })
     it("Saler can withdraw his tokens if sale wasn't approved and started", async () => {
@@ -603,11 +602,11 @@ contract("SaleFactory and Sale", function (accounts) {
       this.dayAfterTommorow = this.currentTimestamp + 2 * this.SECONDS_IN_DAY
       const price = new web3.utils.BN(parseFloat('1') * Math.pow(10, 13));
       const saleCreatedReceipt = await this.saleFactory.createNewSale(
-        randomTokenName,
-        this.randomToken.address,
+        testTokenName,
+        this.testToken.address,
         admin,
         "10000000000000",
-        [0, 10, 100, 1000, 1500, 2000, 3000, 200000, 200000].map(value => this.addDecimals(value, randomTokenDecimals)),
+        [0, 10, 100, 1000, 1500, 2000, 3000, 200000, 200000].map(value => this.addDecimals(value, testTokenDecimals)),
         this.tommorow,
         this.dayAfterTommorow,
         price.toString(),
@@ -615,7 +614,7 @@ contract("SaleFactory and Sale", function (accounts) {
         { from: admin }
       );
       this.sale = await Sale.at(saleCreatedReceipt.logs[0].args.saleAddress);
-      await this.randomToken.approve(
+      await this.testToken.approve(
 				this.sale.address,
 				"10000000000000",
 				{ from: admin }
@@ -627,7 +626,7 @@ contract("SaleFactory and Sale", function (accounts) {
       const isApproved = await this.sale.approved()
       assert.deepEqual(isApproved, false);
       await this.sale.withdrawTokensFromInvalidSale({from:admin})
-      const adminBalance = await this.randomToken.balanceOf(admin)
+      const adminBalance = await this.testToken.balanceOf(admin)
       assert.deepEqual(adminBalance.toString(), "19000000000000");
     })
   })

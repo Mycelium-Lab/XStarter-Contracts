@@ -1,7 +1,7 @@
 pragma solidity 0.6.2;
 import "./Sale.sol";
-import "./XStarterStaking.sol";
-import "./HasAdmin.sol";
+import "../staking/XStarterStaking.sol";
+import "../access/HasAdmin.sol";
 contract SaleFactory is HasAdmin{
     uint256 salesAmount = 0;
     XStarterStaking xStarterStaking;

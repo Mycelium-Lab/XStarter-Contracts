@@ -7,7 +7,7 @@ const XStarterStaking = artifacts.require("XStarterStaking")
 const { expectRevert } = require('@openzeppelin/test-helpers');
 const { web3 } = require("@openzeppelin/test-helpers/src/setup")
 
-contract("Test Logic", function (accounts) {
+contract("XStarterStaking", function (accounts) {
 	const [admin, proxyAdmin, alice, john, jack, bob, sam, kyle, dale, homer, harry, james, george, edward, ryan, eric, tom, ben, jen, ken, ...rest] = accounts
 
 	before(async () => {
@@ -24,12 +24,6 @@ contract("Test Logic", function (accounts) {
 		this.xStarterStaking = await XStarterStaking.new(this.proxyInstance.address, admin, [0, 1000, 5000, 10000, 25000, 50000, 75000, 100000, 500000], 10)
 		await this.tokenInstance.initialize(admin, "10000000000000", 10, this.xStarterStaking.address)
 
-		// const minter_role = await this.tokenInstance.MINTER_ROLE()
-		// await this.tokenInstance.grantRole(minter_role, this.xStarterStaking.address, {
-		// 	from: admin,
-		// })
-		// TODO: Time snapshot? 
-		// extras
 		this.advanceBlockAtTime = (time) => {
 			return new Promise((resolve, reject) => {
 				web3.currentProvider.send(
@@ -140,11 +134,6 @@ contract("Test Logic", function (accounts) {
 			let block = await web3.eth.getBlock(blockNumber)
 			const thirtyDays = block.timestamp + this.SECONDS_IN_DAY * 30
 			await this.advanceBlockAtTime(thirtyDays)
-			// let currentBlock = await web3.eth.getBlock('latest')
-			// let stake = await this.xStarterStaking.stakeList(0)
-			
-			// let currentTimestamp = new web3.utils.BN(currentBlock.timestamp + "")
-			// let secondspassed = currentTimestamp.sub(stake.stakeTimestamp)
 			let interest = await this.xStarterStaking.calculateInterestAmount(0)
 			let expectedInterest = await this.calculateInterestAmountPerPeriod(0, "10")
 			assert.deepEqual(expectedInterest.toString(), interest.toString())
@@ -187,7 +176,6 @@ contract("Test Logic", function (accounts) {
 			assert.deepEqual(interestSecondStake.toString(), "13698")
 			expectedInterest = await this.calculateInterestAmountPerPeriod(0, "10")
 			assert.deepEqual(interest.toString() === "38628" || interest.toString() === "38629", true)
-			//13698
 		})
 
 		it("Only stake's owner can withdraw", async () => {

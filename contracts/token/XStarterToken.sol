@@ -4,6 +4,7 @@ import "@openzeppelin/contracts/proxy/Initializable.sol";
 import "./ERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 contract XStarterToken is ERC20, Initializable {
+    using SafeMath for uint256;
     struct MintPermitPeriod{
         uint256 startTimestamp;
         uint256 endTimestamp;
@@ -11,11 +12,10 @@ contract XStarterToken is ERC20, Initializable {
         uint256 mintedAmount;
         uint256 initialTotalSupply;
     }
-    using SafeMath for uint256;
     uint256 internal constant SECONDS_IN_THREE_YEARS = 94608000;
     uint256 internal constant SECONDS_IN_ONE_YEAR = 31536000;
     uint256 public initialTotalSupply;
-    address public DAOAddress;
+    address public daoAddress;
     address public ownerAddress;
     address public stakingAddress;
     bool public isDAOAssigned = false;
@@ -32,12 +32,12 @@ contract XStarterToken is ERC20, Initializable {
     }
 
     function mint(address recipient, uint256 amount) public returns (bool) {
-        require(msg.sender == ownerAddress || msg.sender ==  stakingAddress, "mint: unauthorized call!");
-        if(msg.sender == stakingAddress){
+        require(_msgSender() == ownerAddress || _msgSender() ==  stakingAddress, "mint: unauthorized call!");
+        if(_msgSender() == stakingAddress){
             _mint(recipient, amount);
             return true;
         }
-        if(msg.sender == ownerAddress){
+        if(_msgSender() == ownerAddress){
             uint256 lastAssignedPeriod = mintPeriodsLength.sub(1);
             require(now < mintPeriods[lastAssignedPeriod].endTimestamp, "Next mint permit rate not assigned yet!");
             if(now >= mintPeriods[lastAssignedPeriod].startTimestamp && now < mintPeriods[lastAssignedPeriod].endTimestamp){
@@ -60,12 +60,12 @@ contract XStarterToken is ERC20, Initializable {
     }
     function grantDAORole(address dao) public {
         require(!isDAOAssigned, "DAO role is already granted!");
-        require(msg.sender==ownerAddress, "Only contract owner can call this function!");
-        DAOAddress = dao;
+        require(_msgSender()==ownerAddress, "Only contract owner can call this function!");
+        daoAddress = dao;
         isDAOAssigned = true;
     }
     function assignOwnerMintPermitRate(uint256 _ownerMintPermitRate) public{
-        require(msg.sender == DAOAddress, "Only assigned DAO can call this function!");
+        require(_msgSender() == daoAddress, "Only assigned DAO can call this function!");
         uint256 lastAssignedPeriod = mintPeriodsLength.sub(1);
         require(now >= mintPeriods[lastAssignedPeriod].startTimestamp, "You can only assign permit rate on one year ahead!");
         if(now >= mintPeriods[lastAssignedPeriod].endTimestamp){
@@ -79,9 +79,9 @@ contract XStarterToken is ERC20, Initializable {
         }
         
     }
-    function changeDAOAddress(address _DAOAddress) public {
-         require(msg.sender == DAOAddress, "Only assigned DAO can call this function!");
-         DAOAddress = _DAOAddress;
+    function changeDAOAddress(address _daoAddress) public {
+         require(_msgSender() == daoAddress, "Only assigned DAO can call this function!");
+         daoAddress = _daoAddress;
     }
     function burn(uint256 amount) public {
         _burn(_msgSender(), amount);

@@ -12,9 +12,5 @@ module.exports = (deployer, network, accounts) => {
   
     const xStarterStaking = await deployer.deploy(XStarterStaking, proxyInstance.address, admin, DEFAULT_TIER_VALUES, 20)
     await tokenInstance.initialize(admin, "10000000000000", 10, xStarterStaking.address)
-    // const minter_role = await tokenInstance.MINTER_ROLE()
-    // await tokenInstance.grantRole(minter_role, xStarterStaking.address, {
-    //   from: admin,
-    // })
   })
 }

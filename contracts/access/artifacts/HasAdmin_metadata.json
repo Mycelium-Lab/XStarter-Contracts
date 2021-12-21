@@ -1,0 +1,78 @@
+{
+	"compiler": {
+		"version": "0.6.2+commit.bacdbe57"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "_admin",
+						"type": "address"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "constructor"
+			},
+			{
+				"inputs": [],
+				"name": "admin",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "_newAdmin",
+						"type": "address"
+					}
+				],
+				"name": "changeAdmin",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"methods": {}
+		},
+		"userdoc": {
+			"methods": {}
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"contracts/access/HasAdmin.sol": "HasAdmin"
+		},
+		"evmVersion": "istanbul",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"contracts/access/HasAdmin.sol": {
+			"keccak256": "0xd2dbb3dd451504d11302fc1829da345d0ea2e74c6272a568417a3acff0cbd789",
+			"urls": [
+				"bzz-raw://f1f3fc5ec3a75ad96555b23ee3d5dd8807aa5e6f1a84d76066996e404daa58bb",
+				"dweb:/ipfs/QmQ2W8JXHL5EF6v1DXWXotQ1JtoimHUwPpKdogUb8EQeYZ"
+			]
+		}
+	},
+	"version": 1
+}

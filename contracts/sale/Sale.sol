@@ -1,8 +1,7 @@
 pragma solidity 0.6.2;
-import "./XStarterStaking.sol";
+import "../staking/XStarterStaking.sol";
 import "./SaleFactory.sol";
-import "./HasAdmin.sol";
-import "./ERC20.sol";
+import "../token/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 contract Sale{
     using SafeMath for uint256;

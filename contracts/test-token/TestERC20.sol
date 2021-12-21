@@ -3,7 +3,7 @@ pragma solidity 0.6.2;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-
+import "@openzeppelin/contracts/GSN/Context.sol";
 /**
  * @dev Implementation of the {IERC20} interface.
  *
@@ -28,7 +28,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
  * functions have been added to mitigate the well-known issues around setting
  * allowances. See {IERC20-approve}.
  */
-contract ERC20 is AccessControl, IERC20 {
+contract TestERC20 is AccessControl, IERC20 {
     using SafeMath for uint256;
     using Address for address;
 
@@ -38,7 +38,7 @@ contract ERC20 is AccessControl, IERC20 {
 
     uint256 private _totalSupply;
 
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+   bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
     mapping(address => uint256) private _balances;
     mapping(address => mapping(address => uint256)) private _allowances;
