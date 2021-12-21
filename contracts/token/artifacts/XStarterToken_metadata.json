@@ -265,7 +265,7 @@
 				"inputs": [
 					{
 						"internalType": "address",
-						"name": "admin",
+						"name": "_owner",
 						"type": "address"
 					},
 					{
@@ -354,11 +354,6 @@
 					{
 						"internalType": "uint256",
 						"name": "mintedAmount",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "initialTotalSupply",
 						"type": "uint256"
 					}
 				],
@@ -577,10 +572,10 @@
 			]
 		},
 		"contracts/token/XStarterToken.sol": {
-			"keccak256": "0xe9f6f7d5a7dea975b737209eb0713a2569c17ebf22a86a4b81504eb18c73082e",
+			"keccak256": "0xdcb91b85c96eedd4afbd3c6003336498cac93fb76689310cbab4f30522f74adf",
 			"urls": [
-				"bzz-raw://e4ed8e3bd1d1576d3d1cb247bf72a2f4b2b9bc41cf36a34669b6a534cb18830b",
-				"dweb:/ipfs/QmReZB4dTJSwos2oxV896PFo1PpXLAABKS6EU93f3CjJbC"
+				"bzz-raw://8cb251b9a621fe106138c10819745a07f58e2a488b1429d9fe6192f592ec7971",
+				"dweb:/ipfs/QmagkgZrBbnxwsnxCkGw4vjMff8G5yWA49H8wK3bPZ6PfQ"
 			]
 		}
 	},

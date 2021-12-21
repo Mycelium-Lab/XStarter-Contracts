@@ -10,7 +10,6 @@ contract XStarterToken is ERC20, Initializable {
         uint256 endTimestamp;
         uint256 permitRate;
         uint256 mintedAmount;
-        uint256 initialTotalSupply;
     }
     uint256 internal constant SECONDS_IN_THREE_YEARS = 94608000;
     uint256 internal constant SECONDS_IN_ONE_YEAR = 31536000;
@@ -21,13 +20,13 @@ contract XStarterToken is ERC20, Initializable {
     bool public isDAOAssigned = false;
     mapping (uint256 => MintPermitPeriod) public mintPeriods;
     uint256 mintPeriodsLength = 0;
-    function initialize(address admin, uint256 _initialTotalSupply, uint256 _ownerMintPermitRate, address _stakingAddress) public initializer {
+    function initialize(address _owner, uint256 _initialTotalSupply, uint256 _ownerMintPermitRate, address _stakingAddress) public initializer {
         _initialize("XStarter", "XST", 8);
-        ownerAddress = admin;
+        ownerAddress = _owner;
         stakingAddress = _stakingAddress;
-        _mint(admin, _initialTotalSupply);
+        _mint(_owner, _initialTotalSupply);
         initialTotalSupply = _initialTotalSupply;
-        mintPeriods[mintPeriodsLength] = MintPermitPeriod(now, now + SECONDS_IN_THREE_YEARS, _ownerMintPermitRate, 0, initialTotalSupply);
+        mintPeriods[mintPeriodsLength] = MintPermitPeriod(now, now + SECONDS_IN_THREE_YEARS, _ownerMintPermitRate, 0);
         mintPeriodsLength = mintPeriodsLength.add(1);
     }
 
@@ -45,8 +44,8 @@ contract XStarterToken is ERC20, Initializable {
                  mintInPeriod(recipient, amount, lastAssignedPeriod);
             }else if(now < mintPeriods[lastAssignedPeriod].startTimestamp){
                 // find period and see if can mint
-                if(now >= mintPeriods[lastAssignedPeriod-1].startTimestamp && now < mintPeriods[lastAssignedPeriod-1].endTimestamp){
-                    mintInPeriod(recipient, amount, lastAssignedPeriod-1);
+                if(now >= mintPeriods[lastAssignedPeriod.sub(1)].startTimestamp && now < mintPeriods[lastAssignedPeriod.sub(1)].endTimestamp){
+                    mintInPeriod(recipient, amount, lastAssignedPeriod.sub(1));
                 }
             }
         }
@@ -70,17 +69,17 @@ contract XStarterToken is ERC20, Initializable {
         require(now >= mintPeriods[lastAssignedPeriod].startTimestamp, "You can only assign permit rate on one year ahead!");
         if(now >= mintPeriods[lastAssignedPeriod].endTimestamp){
             // add mint period startTimestamp is now for one year
-            mintPeriods[mintPeriodsLength] = MintPermitPeriod(now, now + SECONDS_IN_ONE_YEAR, _ownerMintPermitRate, 0, initialTotalSupply);
+            mintPeriods[mintPeriodsLength] = MintPermitPeriod(now, now + SECONDS_IN_ONE_YEAR, _ownerMintPermitRate, 0);
             mintPeriodsLength = mintPeriodsLength.add(1);
         }else if(now >= mintPeriods[lastAssignedPeriod].startTimestamp && now < mintPeriods[lastAssignedPeriod].endTimestamp){
             // add mint period one year after this one
-            mintPeriods[mintPeriodsLength] = MintPermitPeriod(mintPeriods[lastAssignedPeriod].endTimestamp, mintPeriods[lastAssignedPeriod].endTimestamp + SECONDS_IN_ONE_YEAR, _ownerMintPermitRate, 0, initialTotalSupply);
+            mintPeriods[mintPeriodsLength] = MintPermitPeriod(mintPeriods[lastAssignedPeriod].endTimestamp, mintPeriods[lastAssignedPeriod].endTimestamp + SECONDS_IN_ONE_YEAR, _ownerMintPermitRate, 0);
             mintPeriodsLength = mintPeriodsLength.add(1);
         }
         
     }
     function changeDAOAddress(address _daoAddress) public {
-         require(_msgSender() == daoAddress, "Only assigned DAO can call this function!");
+         require(_msgSender() == daoAddress && isDAOAssigned, "Only assigned DAO can call this function!");
          daoAddress = _daoAddress;
     }
     function burn(uint256 amount) public {
