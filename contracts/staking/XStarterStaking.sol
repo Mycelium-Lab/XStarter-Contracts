@@ -29,7 +29,6 @@ contract XStarterStaking is HasAdmin{
         uint256 endTimestamp;
         uint256 aprRate;
     }
-    mapping(address => uint256) public userTiers;
     uint256[] public tierValues;
     Stake[] public stakeList;
     mapping(address => uint256) public userStakeAmount;
@@ -60,14 +59,14 @@ contract XStarterStaking is HasAdmin{
     function amountOfTiers() public view returns(uint256){
         return tierValues.length;
     }
-    function updateUserTier(address user) private {
+    function getUserTier(address user) public view returns(uint256) {
         uint256 userTier = 0;
         for (uint256 i = 0; i < tierValues.length; i ++){
             if(userStakeAmount[user] >= tierValues[i]){
                 userTier = i;
             }
         }
-        userTiers[user] = userTier;
+        return userTier;
     }
     function updateTierValues(uint256[] memory _tierValues) public onlyAdmin{
         tierValues = _tierValues;
@@ -75,10 +74,6 @@ contract XStarterStaking is HasAdmin{
     function updateSpecificTierValue(uint256 tierValue, uint256 tierIndex) public onlyAdmin{
         require(tierValue >= 0 && tierIndex >= 0 && tierIndex < tierValues.length, "Wrong input values.");
         tierValues[tierIndex] = tierValue;
-    }
-    function updateSenderTier() public {
-        require(userStakeAmount[msg.sender] > 0, "You didn't stake any coins. Your tier is 0.");
-        updateUserTier(msg.sender);
     }
     function changeAPR(uint256 newAPR) onlyAdmin public {
         if(aprPeriodsLength > 0){
@@ -135,7 +130,6 @@ contract XStarterStaking is HasAdmin{
         userStakeAmount[msg.sender] = SafeMath.add(userStakeAmount[msg.sender], stakeAmount);
         totalStakedTokens = SafeMath.add(totalStakedTokens, stakeAmount);
         xstarterToken.safeTransferFrom(msg.sender, address(this), stakeAmount);
-        updateUserTier(msg.sender);
         emit CreateStake(
             stakeIdx,
             msg.sender,
@@ -165,7 +159,6 @@ contract XStarterStaking is HasAdmin{
         stakeObj.withdrawnInterestAmount = interestAmount;
         userStakeAmount[stakeObj.staker] = SafeMath.sub(userStakeAmount[stakeObj.staker], stakeObj.stakeAmount);
         totalStakedTokens = SafeMath.sub(totalStakedTokens, stakeObj.stakeAmount);
-        updateUserTier(stakeObj.staker);
         emit WithdrawReward(stakeIdx, stakeObj.staker, interestAmount);
     }
 }

@@ -96,7 +96,7 @@ contract Sale{
         price = newPrice;
     }
     function getCustomerTier(address customer) internal view returns (uint256){
-        return xStarterStaking.userTiers(customer);
+        return xStarterStaking.getUserTier(customer);
     }
     function isSaleActive() public view returns (bool){
         return now > startTimestamp && now < endTimestamp;
@@ -135,7 +135,7 @@ contract Sale{
         uint256 tokenPurchase = SafeMath.div(purchaseAmount, price);
         uint256 decimals = 10 ** uint256(erc20Token.decimals());
         tokenPurchase = SafeMath.mul(tokenPurchase, decimals);
-        require(SafeMath.add(tokenPurchase, tokenBalances[msg.sender]) <= tiersMaxAmountValues[xStarterStaking.userTiers(msg.sender)], "Your tier is too low to buy this amount of tokens.");
+        require(SafeMath.add(tokenPurchase, tokenBalances[msg.sender]) <= tiersMaxAmountValues[getCustomerTier(msg.sender)], "Your tier is too low to buy this amount of tokens.");
         uint256 totalTokensNeeded = SafeMath.add(tokenPurchase, totalTokensSold);
         require(hardcap >= totalTokensNeeded, "Contract doesn't have sufficient amount of tokens.");
         if (excessAmount > 0) {

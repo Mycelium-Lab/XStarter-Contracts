@@ -284,10 +284,10 @@
 			]
 		},
 		"contracts/sale/Sale.sol": {
-			"keccak256": "0xbe5a9785dab844499d914872c9e2fe0c7a564eafac364411263e534b9ce77bb0",
+			"keccak256": "0xf1a64f2910d81f42d9d14ab0ccc635364653efeca0963d68d69f283693fe3f50",
 			"urls": [
-				"bzz-raw://a824cb1ab41591aebefb9553d568336c4ec6046b5384f2dde5dc7db84c422148",
-				"dweb:/ipfs/QmSLTHiT4zHL2CTc5XKvUMT2FjSyuwW9KMNW6cNSsAoiEW"
+				"bzz-raw://fdb5494fd84d43c51373fd5af48e122e7f88a713764474255ffb99da8134cb80",
+				"dweb:/ipfs/QmaW9ic98kQk6yWaXcZyEErVVGmJdnVXcibsqqtCQTcceV"
 			]
 		},
 		"contracts/sale/SaleFactory.sol": {
@@ -298,10 +298,10 @@
 			]
 		},
 		"contracts/staking/XStarterStaking.sol": {
-			"keccak256": "0x06d349dd5b722e383bcfc30b5879d508dd736ae29bab91792d8f2c790cb9ad8b",
+			"keccak256": "0xea7ef15f0e595ab221daef9ab980c882682d1c1e2050ecc22a6f5886e1de1c70",
 			"urls": [
-				"bzz-raw://6966b769d89b7cbc46d8564ff6ca98e8daab4b60b7af223f57db4b65cc3bd3ce",
-				"dweb:/ipfs/QmZsJt8WaqirjAzYCLRV7kiDhgK4hUbRpKuet2FsHTwGkZ"
+				"bzz-raw://9b60148f82ffe18264f5672ba40706781580ef857d9730f6628fe4d61060dcfa",
+				"dweb:/ipfs/Qmf36HR9mMkvRbxr7H2QPtyU3m5eu7rrNcH5veuH6bgeKf"
 			]
 		},
 		"contracts/token/ERC20.sol": {
@@ -312,10 +312,10 @@
 			]
 		},
 		"contracts/token/XStarterToken.sol": {
-			"keccak256": "0xe9f6f7d5a7dea975b737209eb0713a2569c17ebf22a86a4b81504eb18c73082e",
+			"keccak256": "0xdcb91b85c96eedd4afbd3c6003336498cac93fb76689310cbab4f30522f74adf",
 			"urls": [
-				"bzz-raw://e4ed8e3bd1d1576d3d1cb247bf72a2f4b2b9bc41cf36a34669b6a534cb18830b",
-				"dweb:/ipfs/QmReZB4dTJSwos2oxV896PFo1PpXLAABKS6EU93f3CjJbC"
+				"bzz-raw://8cb251b9a621fe106138c10819745a07f58e2a488b1429d9fe6192f592ec7971",
+				"dweb:/ipfs/QmagkgZrBbnxwsnxCkGw4vjMff8G5yWA49H8wK3bPZ6PfQ"
 			]
 		}
 	},

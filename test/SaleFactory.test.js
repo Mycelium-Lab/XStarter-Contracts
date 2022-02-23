@@ -123,7 +123,7 @@ contract("SaleFactory && Sale", function (accounts) {
         { from: alice }
       )
       // check alise's tier
-      const aliceTierLevelStaked = await this.xStarterStaking.userTiers(alice);
+      const aliceTierLevelStaked = await this.xStarterStaking.getUserTier(alice);
     })
   })
   describe("SaleFactory", async () => {
