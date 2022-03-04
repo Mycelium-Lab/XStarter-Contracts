@@ -3,6 +3,8 @@ import "./Sale.sol";
 import "../staking/XStarterStaking.sol";
 import "../access/HasAdmin.sol";
 contract SaleFactory is HasAdmin{
+    event teamAdded(address team);
+    event teamRemoved(address team);
     uint256 salesAmount = 0;
     XStarterStaking xStarterStaking;
     mapping(address => bool) public saleCreators;
@@ -64,5 +66,10 @@ contract SaleFactory is HasAdmin{
     }
     function setSaleCreator(address user, bool value) public onlyAdmin{
         saleCreators[user] = value;
+        if (value == true) {
+            emit teamAdded(user);
+        } else {
+            emit teamRemoved(user);
+        }
     }
 }

@@ -104,6 +104,9 @@ contract Sale{
     function hasSaleEnded() public view returns (bool){
         return now > endTimestamp;
     }
+    function getAmountOfTiers() public view returns (uint256) {
+        return tiersMaxAmountValues.length;
+    }
     function getCurrentTimestamp() public view returns (uint256){
         return now;
     }
@@ -157,7 +160,7 @@ contract Sale{
         emit hardcapIncreased(amount, hardcap);
     }
     function withdrawTokensFromInvalidSale() public onlySaler {
-        require(now < startTimestamp || declined || (now > startTimestamp && !approved), "Sale is valid. Tokens can be withdrawn only after sale ends with withdrawSaleResult function.");
+        require(now < startTimestamp || declined || (now > startTimestamp && !approved) || (now > startTimestamp && hardcap < softcap), "Sale is valid. Tokens can be withdrawn only after sale ends with withdrawSaleResult function.");
         require(hardcap > 0, "There's nothing to withdraw.");
         erc20Token.safeTransfer(msg.sender, hardcap);
         hardcap = 0;

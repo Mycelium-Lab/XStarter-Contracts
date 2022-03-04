@@ -89,6 +89,32 @@
 				"type": "event"
 			},
 			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "address",
+						"name": "team",
+						"type": "address"
+					}
+				],
+				"name": "teamAdded",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "address",
+						"name": "team",
+						"type": "address"
+					}
+				],
+				"name": "teamRemoved",
+				"type": "event"
+			},
+			{
 				"inputs": [],
 				"name": "admin",
 				"outputs": [
@@ -284,17 +310,17 @@
 			]
 		},
 		"contracts/sale/Sale.sol": {
-			"keccak256": "0xf1a64f2910d81f42d9d14ab0ccc635364653efeca0963d68d69f283693fe3f50",
+			"keccak256": "0x0fe3becefad2371bdf04ddd3be4561249d60fad233d9f19241f365861d9a1d60",
 			"urls": [
-				"bzz-raw://fdb5494fd84d43c51373fd5af48e122e7f88a713764474255ffb99da8134cb80",
-				"dweb:/ipfs/QmaW9ic98kQk6yWaXcZyEErVVGmJdnVXcibsqqtCQTcceV"
+				"bzz-raw://100b97f234ed30cbd26d8aa7e5ea5056eb5534c80b7aa06254c9a022982cad30",
+				"dweb:/ipfs/QmRruv3AnMKt7XDZXo9Ay1e7ob3zdFF7jUwy19fcgJDrwJ"
 			]
 		},
 		"contracts/sale/SaleFactory.sol": {
-			"keccak256": "0xe65892462d256c81cbf571bfae09f820a0c52513caf7a56e3c0066a220257d23",
+			"keccak256": "0xbe8f97f5ae1357f5f49ebb6e80f2266a9574b693be82ae56cb3418cd92cbab9b",
 			"urls": [
-				"bzz-raw://3e5f817f6471577a847371e8faef8524bc91be112509d2e4a19330ce47be2fdf",
-				"dweb:/ipfs/QmWMWfJcQ8C3NHfqdXg7Roo4TGQivjELCB4cBNo883BsKG"
+				"bzz-raw://3d50bc22b2b79843e5858c159f9522cbc0bba38996dd1bfc1da3e3c43a391ca7",
+				"dweb:/ipfs/QmaXMhAwrSraBi9wR6CTiiBkXiBRMv9ptmPL53xQFVR3A5"
 			]
 		},
 		"contracts/staking/XStarterStaking.sol": {
